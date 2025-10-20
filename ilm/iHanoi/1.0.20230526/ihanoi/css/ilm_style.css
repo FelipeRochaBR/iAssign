@@ -1,0 +1,204 @@
+
+
+body {
+  font-size: 11pt;
+  color: #333333;
+  font-family: verdana, arial, helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+hr { height: 5px; line-height: 1%; height: 0; }
+
+p.title {
+  color: #0066ff; margin: 0 0 10px 0;
+  font-size: 130%; font-weight: bold;
+}
+
+p.subtitle {
+  color: #0066ff; margin: 0 0 10px 0;
+  font-size: 110%; font-weight: bold;
+}
+
+p.legend {
+  color: #0066ff; margin: 0 0 10px 0;
+  font-size: 80%; font-weight: bold; text-align: center;
+}
+p.text {
+  margin: 10px 10px 10px 10px;
+  font-size: 90%; text-align:justify;
+}
+
+td { font-size: 90%; text-align:left; }
+td.txt { font-size: 100%; text-align:left; }
+
+erro { color: #a00000; }
+azul { color: #0000BA; } /* if, while, for */
+azul2 { color: #00007A; }
+verd { color: #008A00; } /* scanf, printf, input, print */
+verd2 { color: #007500; } /* para "..." em scanf e printf */
+verm { color: #BA0000; } /* int, float, void, def, return, variaveis */
+cyan { color: #458A8A; } /* comentarios */
+preto { color: #000000; }
+def { color: #a500a5; } /* #define */
+incl1 { color: #a500a5; } /* #define, #include, import, from */
+
+/* Linha com 2 <p></p> um a esq. outro a dir. */
+div.linha_cabecalho { display: flex; justify-content: space-between; font-size: 130%; font-weight: bold; color: #0066ff; }
+
+div.linha_rodape { display: flex; justify-content: space-between; font-size: 80%; font-weight: normal; color: #0066ff; }
+
+.rodape { font-size: 80%; font-weight: normal; color: #0066ff; }
+
+div.text {
+  margin: 10px 10px 10px 10px;
+  font-size: 90%; text-align:justify;
+}
+
+table.menu {
+  background-color: #E6ECF1; width: 99%;
+  margin: 5px 5px 5px 5px;
+  border-top-width: 1px;  border-bottom-width: 1px; border-color:  #DDDDDD;
+  font-size: 95%;
+
+}
+
+
+div#page {
+  margin: 0 0px; /* margem geral: de todos os blocos */
+  padding-top: 0px;
+  width: auto;
+}
+
+
+div.clearer { clear: both; }
+a:link,
+a:visited { color: #116699; text-decoration: none; }
+a:hover { color: #0066FF; text-decoration: underline; }
+
+
+div.navbar {
+  padding: 3px 3px 6px 6px; margin: 5px 5px 5px 5px; border-radius: 10px;
+  clear: both;
+  background-color: #FFFFFF; background-repeat: repeat-x;
+  border-right-width: 1px; border-left-width: 1px; border-style: none solid;
+  border-right-color: #cccccc; border-left-color: #cccccc;
+}
+
+
+div#header-home { position: relative; margin: 0; }
+
+div#header { position: relative; margin: 0; }
+
+td#left-column { padding-top: 10px; padding-right: 5px; }
+
+td#right-column { padding-top: 10px; padding-left: 5px; }
+
+table#layout-table {
+  margin-top: 0; border-collapse: collapse; border-spacing: 0;
+}
+
+table#layout-table td#middle-column { padding: 10px 0 0; }
+
+div.sitetopic { border-style: none; }
+
+div.categorybox {
+  border-style: solid; border-width: 1px; border-color: #EEEEEE;
+}
+
+div.bb div {
+  font-size: 1px; line-height: 1%; height: 0;
+  background-repeat: no-repeat; background-position: 0 0; background-color: transparent;
+}
+
+div.bb {
+  background-repeat: no-repeat; background-position: 100% 0; text-align: left;
+}
+div.i1 {
+  background-repeat: repeat-y; background-position: 0 0; background-color: transparent;
+}
+
+div.i2 {
+  background-repeat: repeat-y; background-position: 100% 0; background-color: transparent;
+}
+
+div#header div.bt div {
+  background-image: url(pix/beige_box.png);  background-repeat: no-repeat; background-position: 0 0;
+  background-color: transparent; width: 13px; height: 12px; left: -13px; position: relative;
+}
+div#header div.bt {
+  background-image: url(pix/beige_box.png);
+  background-repeat: no-repeat; background-position: 100% 0;
+  margin: 0 0 0 13px; height: 12px; background-color: transparent;
+}
+div#header div.i1 {
+  background-image: url(pix/beige_borders.png);
+  background-repeat: repeat-y; background-position: 0 0;
+  background-color: transparent; padding: 0 0 0 12px;
+}
+div#header div.i2 {
+  background-image: url(pix/beige_borders.png);
+  background-repeat: repeat-y; background-attachment: scroll;
+  background-position: 100% 0; background-color: transparent; padding: 0 12px 0 0;
+}
+div#header div.i3 { /* main frame - complete page */
+  background-color: #d0dcf0; /* E6ECF1 -> d0dcf0 */
+  padding: 10px 5px 0 5px;
+  border-top-width: 1px; border-bottom-width: 1px; border-style: solid none;
+  border-top-color: #E6ECF1; border-bottom-color: #E6ECF1;
+}
+div#header div.bb div {
+  background-image: url(pix/beige_box.png);
+  background-repeat: no-repeat; background-position: 0 100%; background-color: transparent;
+  width: 13px; height: 12px; left: -13px; position: relative;
+}
+div#header div.bb {
+  background-image: url(pix/beige_box.png);
+  background-repeat: no-repeat; background-position: 100% 100%; background-color: transparent;
+  margin: 0 0 0 13px; height: 12px;
+}
+div#header-home div.bt div {
+  background-image: url(pix/beige_box.png);
+  background-repeat: no-repeat; background-position: 0 0; background-color: transparent;
+  width: 13px; height: 12px; left: -13px; position: relative;
+}
+div#header-home div.bt {
+  background-image: url(pix/beige_box.png);
+  background-repeat: no-repeat; background-position: 100% 0;
+  margin: 0 0 0 13px; height: 12px;
+  background-color: transparent;
+}
+div#header-home div.i1 {
+  background-image: url(pix/beige_borders.png);
+  background-repeat: repeat-y; background-position: 0 0;
+  background-color: transparent; padding: 0 0 0 12px;
+}
+div#header-home div.i2 {
+  background-image: url(pix/beige_borders.png);
+  background-repeat: repeat-y; background-attachment: scroll; background-position: 100% 0;
+  background-color: transparent; padding: 0 12px 0 0;
+}
+div#header-home div.i3 {
+  background-color: #E6ECF1; padding: 10px 5px;
+  border-top-width: 1px; border-bottom-width: 1px; border-style: solid none; border-top-color: #E6ECF1; border-bottom-color: #E6ECF1;
+}
+div#header-home div.i3 div.wraphome {
+  background-color: #E6ECF1; border: 1px solid #E6ECF1;
+  padding: 0 10px;
+}
+div#header-home div.bb div {
+  background-image: url(pix/beige_box.png);
+  background-repeat: no-repeat; background-position: 0 100%;
+  background-color: transparent; height: 12px; left: -13px;
+  position: relative; width: 13px;
+}
+div#header-home div.bb {
+  background-image: url(pix/beige_box.png);
+  background-repeat: no-repeat; background-position: 100% 100%;
+  margin: 0 0 0 13px; height: 12px;
+  background-color: transparent;
+}
+
+.fig {
+  font-size: 80%; font-weight: italic;
+}

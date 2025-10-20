@@ -1,0 +1,1590 @@
+<?php
+
+/**
+ * Class that implements ilm_handle, in order to allow manipulation and management of HTML5 iLM
+ * 
+ * @author Igor Moreira Fe'lix
+ * @author Patricia Alves Rodrigues
+ * @author Leo^nidas O. Branda~o
+ * @version v 1 2017/17/10
+ * @package mod_iassign_ilm_handlers
+ * @copyright iMatica (<a href="http://www.matematica.br">iMath</a>) - Computer Science Dep. of IME-USP (Brazil)
+ * 
+ * <b>License</b> 
+ *  - http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+global $CFG;
+
+require_once $CFG->dirroot . '/mod/iassign/ilm_handle.php';
+
+class html5 implements ilm_handle {
+
+  /// Auxiliary function to check is an directory is empty
+  public static function is_empty_dir ($dir) {
+    if (!is_dir($dir))
+      return FALSE;
+    $handle = opendir($dir);
+    while (false !== ($entry = readdir($handle))) {
+      if ($entry != "." && $entry != "..") {
+        closedir($handle); // close end return from here
+        return FALSE;
+        }
+      }
+    closedir($handle); // close end return
+    return TRUE;
+    }
+    
+  /// Produce HTML code to load iLM
+  //  @calledby  locallib.php: class ilm_settings: function build_ilm_tags($ilm_id, $options=array()): $retorno=$typec::build_ilm_tags($ilm_id, $options);
+  public static function build_ilm_tags ($ilm_id, $options = array()) {
+    global $DB, $OUTPUT;
+    global $CONF_WWW; //TODO 1 => use iLM under WWW; otherwise use under MoodleData
+    $html = "";
+
+    if (empty($options['Proposition']))
+      $options['Proposition'] = "";
+    if (empty($options['addresPOST']))
+      $options['addresPOST'] = "";
+    if (empty($options['student_answer']))
+      $options['student_answer'] = "";
+    if (empty($options['notSEND']))
+      $options['notSEND'] = "";
+    else // Case it is authoring put 'notSEND' (important to iVProgH5 to present authoring tool)
+    if ($options['type'] == "editor_update")
+      $options['notSEND'] = "true";
+    if (empty($options['id_iLM_security'])) // if defined, it is from 'iassign_security'
+      $options['id_iLM_security'] = "";
+    $id_iLM_security = $options['id_iLM_security'];
+
+    $iassign_ilm = $DB->get_record('iassign_ilm', array('id' => $ilm_id));
+
+    if ($iassign_ilm) {
+
+      // md_files : filename
+      $ilm_extension = $iassign_ilm->extension; // use local variavel to efficiency (several use)
+      if ($ilm_extension) { // avoid problems
+        $ilm_extension = strtolower($ilm_extension);
+        }
+
+      // Attention: in iAssign 2014 on, all the iLM is located on the Moodle filesystem (usually /var/moodledata/filedir/).
+      // This means that '$iassign_ilm->file_jar' = '*_files.id'
+
+      $file_url = array();
+      $fs = get_file_storage();
+      $files_jar = explode(",", $iassign_ilm->file_jar);
+
+      $url = $iassign_ilm->file_class; // to HTML5 package, this 'file_class' must have the main HTML file
+      array_push($file_url, $url);
+
+      $lang = substr(current_language(), 0, 2);
+
+      if ($options['type'] == "filter") { //leo
+        $iassign_ilm_width = $options['width']; // or use? $iassign_ilm->width
+        $iassign_ilm_height = $options['height']; // or use? $iassign_ilm->height
+      } else { //leo
+        $iassign_ilm_width = $iassign_ilm->width;
+        $iassign_ilm_height = $iassign_ilm->height; // or use? $iassign_ilm->height
+        }
+
+      if (!empty($file_url)) { // There is an iLM file
+        //TODO iLM_HTML5 :: Change to 'object', tag 'applet' was deprecated.
+        $paramsStr = "?1=1";
+        $html .= html5::show_ilm_commands();
+
+        switch ($options['type']) {
+          case "view":
+            $paramsStr .= "&iLM_PARAM_Assignment=" . urlencode($options['Proposition']); //leo
+            $paramsStr .= "&iLM_PARAM_SendAnswer=true";
+            //TODO: REVIEW: this code is to insert iLM as HTML5 and to allow general parameter to any iLM
+            //TODO: For now, 'iassign_ilm_config' is empty... let comment these lines
+            //n $iassign_ilm_config = $DB->get_records('iassign_ilm_config', array('iassign_ilmid' => $ilm_id));
+            //n foreach ($iassign_ilm_config as $ilm_config) {
+            //n   if (array_key_exists($ilm_config->param_name, $options)) {
+            //n     $ilm_config->param_value = $options[$ilm_config->param_name];
+            //n     $paramsStr .= "&" . $ilm_config->param_name . "=" . urlencode($ilm_config->param_value);
+            //n       }
+            //n     }
+            break;
+          case "filter":
+            if ($options['toolbar'] == "disable")
+              $paramsStr .= "&SOH_ADD=ADD";
+            $paramsStr .= "&iLM_PARAM_AssignmentURL=true";
+            $paramsStr .= "&iLM_PARAM_Assignment=" . urlencode($options['Proposition']);
+            $paramsStr .= "&iLM_PARAM_SendAnswer=" . urlencode($options['notSEND']);
+            $paramsStr .= "&iLM_PARAM_ServerToGetAnswerURL=" . urlencode($ilm_config->param_value);
+            break; // static function build_ilm_tags($ilm_id, $options=array())
+          case "activity": // build_ilm_tags
+            //TODO To generalize to any HTML5 iLM, it is necessary to use 'iLM_PARAM_Assignment' and 'iLM_PARAM_SendAnswer'
+            //TODO iLM_PARAM_Assignment=Proposition ; iLM_PARAM_SendAnswer=notSEND
+
+            $paramsStr .= "&iLM_PARAM_AssignmentURL=true";
+            // if ($options['special_param'] == 1) {   }
+            $paramsStr .= "&iLM_PARAM_Assignment=" . urlencode($options['Proposition']);
+            $paramsStr .= "&iLM_PARAM_SendAnswer=" . urlencode($options['notSEND']);
+            $paramsStr .= "&iLM_PARAM_ServerToGetAnswerURL=" . urlencode($options['addresPOST']);
+            //TODO iLM_HTML5 :: To extend to any iLM in HTML5
+            //TODO  iLM_HTML5 :: it will allow to load dynamic parameters
+            //T $iassign_activity_item_configs = $DB->get_records('iassign_statement_config', array('iassign_statementid' => $options['iassign_statement'] ));
+            //T if ($iassign_activity_item_configs) {
+            //T   foreach ($iassign_activity_item_configs as $iassign_activity_item_config)
+            //T     $paramsStr .= "&" . $iassign_activity_item_config->param_name . "=" . urlencode($iassign_activity_item_config->param_value);
+            //T       }      
+            break;
+          case "editor_new":
+            $paramsStr .= "&iLM_PARAM_AssignmentURL=true";
+            $paramsStr .= "&iLM_PARAM_SendAnswer=" . urlencode($options['notSEND']);
+            $paramsStr .= "&iLM_PARAM_Authoring=true";
+            break;
+          case "editor_update":
+            $paramsStr .= "&iLM_PARAM_AssignmentURL=true";
+            $paramsStr .= "&iLM_PARAM_Assignment=" . urlencode($options['Proposition']);
+            $paramsStr .= "&iLM_PARAM_SendAnswer=" . urlencode($options['notSEND']);
+            $paramsStr .= "&iLM_PARAM_Authoring=true";
+            break;
+          default:
+            $html .= iassign::warning_message_iassign('error_view_without_actiontype'); // $OUTPUT->notification(get_string('error_view_without_actiontype', 'iassign'), 'notifyproblem'); // The API allows for creation of four types of notification: error, warning, info, and success.
+            } // switch($options['type'])
+
+          $paramsStr .= "&lang=" . $lang; // get the language defined in Moodle
+          $sty_aux = "overflow-x:hidden !important; overflow-y:hidden !important;";
+          $parameters = ' style="width: ' . $iassign_ilm_width . 'px; height: ' . $iassign_ilm_height . 'px;' . $sty_aux . '" ';
+
+          // $html .= "\n" . '<iframe frameborder="0" seamless="seamless" name="iLM" id="iLM"' . "\n";
+          $html .= "\n" . '<iframe frameborder="0" name="iLM" id="iLM" scrolling="no"' . "\n";
+          $html .= ' src="' . $iassign_ilm->file_jar . $iassign_ilm->file_class . $paramsStr . '" ' . $parameters . '>' . "\n";
+          $html .= "</iframe>\n";
+
+
+        } // if (!empty($file_url))
+      } // if ($iassign_ilm)
+
+    return $html;
+    } // public static function build_ilm_tags($ilm_id, $options = array())
+
+
+  public static function show_ilm_commands () {
+    $html = "<script>function full_screen() {
+  if ('fullscreenEnabled' in document || 'webkitFullscreenEnabled' in document || 'mozFullScreenEnabled' in document || 'msFullscreenEnabled' in document) {
+    if (document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled) {
+      var element = document.getElementsByName('iLM').item(0);
+      //requestFullscreen is used to display an element in full screen mode.
+      if ('requestFullscreen' in element) {
+        element.requestFullscreen();
+      } 
+      else if ('webkitRequestFullscreen' in element) {
+        element.webkitRequestFullscreen();
+      } 
+      else if ('mozRequestFullScreen' in element) {
+        element.mozRequestFullScreen();
+      } 
+      else if ('msRequestFullscreen' in element) {
+        element.msRequestFullscreen();
+      }
+    }
+  } else {
+    $('.expand_button').addClass('disabled');
+  }
+}</script>";
+    $html .= "<div id='fullscreen' style='width: 800px;text-align: right;'><div onClick='full_screen()' style='color: blue; cursor: pointer; display: contents;'>".get_string('full_screen', 'iassign')."</div></div>";
+
+    return $html;
+    } // public static function show_ilm_commands()
+
+
+//TODO: Remover em favor do 'files_functions.php ! get_from_files(.)'
+  // Try to get file from {files} using fields 'id', 'file' and 'filesid' in this order
+  // The current convention is {files}.itemid = {iassign_statement}.id (however previously the others were used)
+  public static function recover_from_files ($fs, $context_id, $iassign_statement_id, $iassign_statement_file, $iassign_statement_files) {
+    // {iassign_statement} = table 'iassign_statement'
+    $answer = [-1,-1]; // indicate error
+    $files = $fs->get_area_files($context_id, 'mod_iassign', 'exercise', $iassign_statement_id);
+    //D if ($files) { $msg_aux = "";  foreach ($files as $one_files) if ($one_files!='.') $msg_aux = "{files}=[id=" . $one_files->get_id() . ", itemid=" . $one_files->get_itemid() . "]<br/>"; }
+    //D echo "ilm_handlers/html5.php: recover_from_files(.): tentou com 'iassign_statement_id'=" . $iassign_statement_id . ": files=" . ($files?"OK":"vazio!") . "<br/>" . $msg_aux . "<br/>";
+    if (!$files) {
+      //D echo " * html5.php: falhou com {iassign_statement}: id=" . $iassign_statement_id . " - tente com file=" . $iassign_statement_file . "<br/>\n";
+      $files = $fs->get_area_files($context_id, 'mod_iassign', 'exercise', $iassign_statement_file);
+      //D echo "ilm_handlers/html5.php: recover_from_files(.): tentou com 'iassign_statement_file'=" . $iassign_statement_file . ": files=" . ($files?"OK":"vazio!") . "<br/>";
+      if (!$files) {
+        //D echo " * html5.php: falhou com {iassign_statement}: file=" . $iassign_statement_file . " - tente com filesid=" . $iassign_statement_filesid . "<br/>\n";
+        // $files = $fs->get_area_files($context_id, 'mod_iassign', 'exercise', $iassign_statement_filesid);
+        $files = $fs->get_file_by_id($iassign_statement_filesid);  
+        //D echo "ilm_handlers/html5.php: recover_from_files(.): tentou com 'iassign_statement_filesid'=" . $iassign_statement_filesid . ": files=" . ($files?"OK":"vazio!") . "<br/>";
+        if (!$files) {
+          //D echo " * html5.php: falhou com {iassign_statement}: filesid=" . $iassign_statement_fileid . " - estou perdido!<br/>\n";
+          }
+        }
+      }
+    if ($files) {
+      //D echo " * html5.php: deu certo com {iassign_statement}: id=" . $iassign_statement_id . ", {files}.id=";
+      //TODO To be revised? 'files.filename' has '.' is only path (not the file)
+      foreach ($files as $one_files) {
+        //D echo $one_files->get_id() . ", ";
+        if ($one_files->get_filename() != '.') {
+          $files_id = $one_files->get_id();
+          $answer[0] = $one_files; // return the {files}
+          $answer[1] = $one_files->get_id(); // return the {files}.id
+          break; // found => finish
+          }
+        }
+      //D echo "<br/>\n";
+      }
+    return $answer;
+    }
+
+
+  /// Presents the iLM content (content inside iLM)
+  //  @calledby locallib.php : view_iLM(...)
+  public static function show_activity_in_ilm ($iassign_statement_activity_item, $student_answer, $enderecoPOST, $view_teacherfileversion) {
+    global $USER, $CFG, $COURSE, $DB, $OUTPUT;
+
+    $special_param1 = $iassign_statement_activity_item->special_param1;
+
+    $ilm = $DB->get_record('iassign_ilm', array('id' => $iassign_statement_activity_item->iassign_ilmid));
+
+    $context = context_module::instance($USER->cm);
+    //D if ($USER->id==3) echo "<br/> * html5.php: show_activity_in_ilm(.): {context}.id=" . $context->id . ", iassign_statement_activity_item.id=" . $iassign_statement_activity_item->id . ", view_teacherfileversion=" . $view_teacherfileversion . "<br/>\n";
+
+    //TODO Given an activity => find its correspondent file in Moodle data. Bad solution!
+    //TODO Change the meaning of 'iassign_statement.file' from insertion order to the ID in table 'files'.
+    //TODO This demands update to each 'iassign_statement', find its corresponding on in 'files', and update 'iassign_statement.file = files.id'
+    if ($view_teacherfileversion) { // get the exercise in Moodle data (teacher file)
+      //D if ($USER->id==3) echo " * html5.php: show_activity_in_ilm(.): iassign_statement_activity_item.id=" . $iassign_statement_activity_item->id . ": carrega " . $CFG->dirroot . '/mod/iassign/files_functions.php' . "<br/>\n";
+      $fileid = "";
+      $fs = get_file_storage();
+      //$files = $fs->get_area_files($context->id, 'mod_iassign', 'exercise', $iassign_statement_activity_item->id); // iassign_statement_activity_item = table 'iassign_statement'
+      // $answer_files = html5::recover_from_files($fs, $context->id, $iassign_statement_activity_item->id, $iassign_statement_activity_item->file, $iassign_statement_activity_item->filesid);
+
+      require_once($CFG->dirroot . '/mod/iassign/files_functions.php');
+      // echo "html5.php: {iassign_statement}.id=" . $iassign_statement_activity_item->id . ", file=" . $iassign_statement_activity_item->file . ", filesid=" . $iassign_statement_activity_item->filesid . "<br/>\n";
+
+      $answer_files = NULL;
+      if ($iassign_statement_activity_item->file!=0 || $iassign_statement_activity_item->filesid!=0) { // problem with restore?
+        $answer_files = get_from_files(
+          $iassign_statement_activity_item->id, $iassign_statement_activity_item->file, $iassign_statement_activity_item->filesid,
+          $fs, $context->id, 'mod_iassign', 'exercise');
+        if ($answer_files == NULL) { // Error: no {files} were found in this context with these 3 itemid
+          $answer_files = get_from_files(
+            $iassign_statement_activity_item->id, $iassign_statement_activity_item->filesid, $iassign_statement_activity_item->filesid,
+            $fs, $context->id, 'mod_iassign', 'exercise');
+          }
+        }
+
+      //D if ($USER->id==3) echo " * html5.php: show_activity_in_ilm(.): #answer_files=" . count($answer_files) . "<br/>\n"; //exit;
+      $one_files = NULL;
+      $one_files_id = -1;
+      $one_files_filename = "<vazio>";
+
+      if ($answer_files == NULL) { // Error: no {files} were found in this context with these 3 itemid
+        print "Error: {iassign_statement}.id=" . $iassign_statement_activity_item->id . " associated file not found! file=" .
+              $iassign_statement_activity_item->file . ", filesid=" . $iassign_statement_activity_item->filesid . "<br/>\n";
+        }
+      else {
+        $one_files = $answer_files[0]; // get $f1_obj from 'files_functions.php!get_from_files(.)'
+        if (!empty($one_files)) {
+          $one_files_id = $one_files->get_id(); // write_iLM_security(.) will use this ID to get file content
+          $one_files_filename = $one_files->get_filename();
+          }
+        //D if ($USER->id==3) echo " &nbsp; + {files} : id=" . $one_files_id . ", itemid=" . $one_files->get_itemid() . ", filename=" . $one_files_filename . "<br/>\n"; //leo
+        }
+      //D echo " * voltou de 'recover_from_files' com one_files_id=" . $one_files_id . "<br/>\n";
+
+      if ($one_files_id == -1) { // 'Something is wrong. Maybe your teacher withdrew this exercise file. Please, inform your teacher.';
+        //D echo "ERRO: one_files_id=-1<br/>\n";
+        print iassign::warning_message_iassign('error_exercise_removed') . "<br/>\n"; // I couldn't find the file in table 'files'!
+        }
+
+      } // if ($view_teacherfileversion)
+
+    $ilm_name = strtolower($ilm->name);
+    $extension = iassign_utils::filename_extension($ilm_name);
+
+    if ($view_teacherfileversion) { // $view_teacherfileversion==1 => load the exercise ('activity') from the 'moodledata' (id in 'files')
+      // $content_or_id_from_ilm_security = $this->context->id;
+      // The content is here: $one_files->get_content(); // since it is teacher get the file contents at once
+      // however the iLM must requires the content (using ./mod/iassign/ilm_security.php)
+      $content_or_id_from_ilm_security = $one_files_id; // $iassign_statement_activity_item->file;
+      }
+    else { // $view_teacherfileversion==null => load the learner answer from the data base (iassign_submission)
+      $content_or_id_from_ilm_security = $student_answer;
+      }
+
+    $allow_submission = false; // There is permission to 'submission' button?
+
+    // Student already send one answer and the iLM allow to edit the submissiont
+    // For instance, the Java version of iGeom does not allow editting (because the send answer do not has the target objects)
+    // However, the iVProg JavaScript version allows editing
+    // if ($USER->iassignEdit == 1 && $student_answer) { // for now, only iVProg2 and iVProgH5 allows editions of exercise already sent
+    if ($ilm->editingbehavior == 1 && $student_answer) { // if iLM allow to edit previous solution
+      $allow_submission = true; // yes!
+      if ($enderecoPOST!="") {
+        // In "locallib.php!view_iassign_current()", if due date is excedeed (even with allow test {iassign_statement}.test==1): $enderecoPOST = "";
+        $write_solution = 1;
+        $enderecoPOST .= "&write_solution=1"; // complement POST address indicating that the learner could send edited solution
+        }
+      }
+
+    // Prepare JS to the button "send" to the iAssign addres in $enderecoPOST
+    // $enderecoPOST is prepared in 'locallib.php:view_iassign_current()'
+    // with "http://.../mod/iassign/view.php?action=get_answer&iassign_submission_current=ID1&id=ID2&iassign_current=ID3&write_solution=1&userid_iassign=ID4&write_solution=1
+    //   ID1 = {iassign_submission}.id 
+    //   ID2 = {course_modules}.id     with {course_modules}.instance = {iassign}.id
+    //   ID3 = {iassign_statement}.id
+    //   ID4 = {user}.id
+    $iassign = "
+<script type='text/javascript'>
+  //<![CDATA[
+  var strAnswer = '';
+  var evaluationResult = '';
+  var comment = '';
+
+  function jsAnalyseAnswer () { // this function will call the iLM function 'getEvaluation()'
+    document.getElementById('spinner-loading').style.visibility = 'visible';
+    setTimeout(function(){
+      document.getElementById('spinner-loading').style.visibility = 'hidden';
+    }, 5000);
+
+    // iVProg will call function 'getEvaluationCallback(...)': /var/www/html/.../<iLM_name>/<iLM_version>/<iLM_dir>/js/iassign-integration-functions.js
+    // - 'getEvaluation()' calls 'js/iassign-integration-functions.js : endTest function(index)' that calls 'getEvaluationCallback(apro/100);'
+    // iFractions: sumEval = getSummation(); alert('mod/iassign/ilm/ifractions_5/index.html: sumEval = ' + sumEval);
+    //ATTENTION 2017/11/22 - the use of 'window.frames.iLM' here, results in error 'TypeError: window.frames.iLM.getEvaluation is not a function'
+    //ATTENTION answerGrade = window.frames.iLM.getEvaluation();
+    var answerGrade = window.frames[0].getEvaluation(); // with the first frame (can not have another frame!), get the iLM student content
+    console.log('./iassign/ilm_handlers/html5.php: jsAnalyseAnswer(): getEvaluation() returned value = ' + answerGrade);
+    // document.getElementsByTagName('frame')[0].src
+    // here answerGrade will return 'undefined' always
+    if (answerGrade == 'undefined' || answerGrade == undefined) {
+      console.log('./iassign/ilm_handlers/html5.php: jsAnalyseAnswer(): Ups! answerGrade undefined!');
+      return false;
+      }
+
+    strAnswer = window.frames[0].getAnswer(); // get from iLM the student answer
+    document.formEnvio.iLM_PARAM_ArchiveContent.value = strAnswer;
+    document.formEnvio.iLM_PARAM_ActivityEvaluation.value = answerGrade;
+    document.formEnvio.iLM_PARAM_RealGrade.value = answerGrade;
+    console.log('./iassign/ilm_handlers/html5.php: jsAnalyseAnswer(): iLM_PARAM_RealGrade<-' + answerGrade);
+    console.log(' * iLM_PARAM_ArchiveContent=' + strAnswer);
+    console.log('-----');
+    document.formEnvio.submit();
+
+    return true; // success
+    }
+
+  window.flagclick = false;
+  // ./mod/iassign/ilm/<iLM-name>/js/iassign-integration-functions.js : call this to define the variable 'evaluationResult'
+  function getEvaluationCallback (evaluation) {
+    let submissionbehavior = " . $ilm->submissionbehavior . ";
+    // console.log('getEvaluationCallback(): evaluation=' + evaluation + ', submissionbehavior=' + submissionbehavior);
+    // console.log('getEvaluationCallback(): enderecoPOST=" . $enderecoPOST . "');
+    evaluationResult = evaluation;
+    // Before 2017/11/22: strAnswer = window.frames.iLM.getAnswer();
+    strAnswer = window.frames[0].getAnswer();      
+    // comment = document.formEnvio.submission_comment.value;
+    //D alert('getEvaluationCallback(...)' + evaluation + ', strAnswer=' + strAnswer);
+    //D alert('getEvaluationCallback: enviando evaluationResult=' + evaluation + ', strAnswer=' + strAnswer);
+    if ((strAnswer==null || strAnswer=='' || strAnswer==-1)) { // undefined // //R && (comment==null || comment=='')
+      alert('" . get_string('activity_empty', 'iassign') . "'); // 'Activity sent without content.'
+      return false; // error...
+      }
+    else if (submissionbehavior == 1) { // iLM has no submition button, use the form one
+      document.formEnvio.iLM_PARAM_ArchiveContent.value = strAnswer;
+      document.formEnvio.iLM_PARAM_ActivityEvaluation.value = evaluationResult;
+      document.formEnvio.iLM_PARAM_RealGrade.value = evaluation;
+      //D alert(strAnswer);
+      document.formEnvio.submit();
+      return true; // success
+      }
+    else if (submissionbehavior == 0) { // iLM has submition button - then, use it to submit answer
+      var formData = new FormData();
+      formData.append('iLM_PARAM_ArchiveContent', strAnswer);
+      formData.append('iLM_PARAM_ActivityEvaluation', evaluationResult);
+      formData.append('iLM_PARAM_RealGrade', evaluation);
+      formData.append('iLM_ajax', 1);
+      var request = new XMLHttpRequest();
+      request.open('POST', '" . $enderecoPOST . "');
+      request.onload = function (e) {
+        if (!window.flagclick) return;
+        window.flagclick = false;
+        document.getElementById('spinner-loading').style.visibility = 'hidden';
+        if (request.readyState === 4) {
+          if (request.status === 200) {
+            document.getElementById('check-message-success-submission').style.visibility = 'visible';
+            setTimeout(function(){
+              document.getElementById('check-message-success-submission').style.visibility = 'hidden';
+            }, 3000);
+          } else {
+            document.getElementById('error-message-submission').style.visibility = 'visible';
+          }
+        } else {
+          document.getElementById('error-message-submission').style.visibility = 'visible';
+        }
+      };
+      request.send(formData);
+      }
+    }
+  //]]>
+</script>\n";
+
+    // Security: this avoid the student get a second access to the file content (usually an exercise)
+    // Data are registered in the table '*_iassign_security' bellow and is erased by function 'view()' above.
+    // IMPORTANT: the '$end_file' will receive the iLM content URL using the security filter './mod/iassign/ilm_security.php'
+    // the iLM must request the content using this URL. Data are registered in the table '*_iassign_security'.
+    // Attention : using iVProgH5 there are lot of " and the use of slashes (as '\"') will imply in iVProgH5 do not read the file!
+    // do not use: $id_iLM_security = $this->write_iLM_security($iassign_statement_activity_item->id, addslashes($content_or_id_from_ilm_security));
+    //2017 $id_iLM_security = $this->write_iLM_security($iassign_statement_activity_item->id, $content_or_id_from_ilm_security); // insert in 'iassign_security'
+    //2017 $this->remove_old_iLM_security_entries($USER->id, $iassign_statement_activity_item->id);  // additional security: erase eventually old entries
+    require_once $CFG->dirroot . '/mod/iassign/ilm_security.php';
+    $timecreated = time();
+    $token = md5($timecreated); // iassign_iLM_security->timecreated);
+
+    //D if ($USER->id==3) echo " * html5.php: antes de 'write_iLM_security': timecreated=".$timecreated.", iassign_statement_activity_item->id=".$iassign_statement_activity_item->id.", content_or_id_from_ilm_security=".$content_or_id_from_ilm_security."<br/>\n"; //leo
+
+    // Additional security to avoid error on "INSERT INTO {iassign_security} (...)"
+    if (!$content_or_id_from_ilm_security || (is_numeric($content_or_id_from_ilm_security) && !($content_or_id_from_ilm_security>0)))
+      $content_or_id_from_ilm_security = -1; // to avoid 'write_iLM_security(.)' try to load non existent file
+    $id_iLM_security = ilm_security::write_iLM_security($USER->id, $timecreated, $iassign_statement_activity_item->id, $content_or_id_from_ilm_security); // insert in 'iassign_security'
+
+    // $iassign_iLM_security = $DB->get_record("iassign_security", array("id" => $id_iLM_security));
+
+    $end_file = $CFG->wwwroot . '/mod/iassign/ilm_security.php?id=' . $id_iLM_security . '&token=' . $token . '&view=' . $view_teacherfileversion; // need full path...
+
+    // $iassign = "..."
+
+    $iassign .= "\n<center>\n<form name='formEnvio' id='formEnvio' method='post' action='" . $enderecoPOST . "' enctype='multipart/form-data'>\n";
+
+    // Attention: The actual iLM content will be provided by the indirect access in './mod/iassign/ilm_security.php',
+    // bellow only the 'token' to the content will be shown in URL (by security reason). The iLM must use this URL on
+    // 'MA_PARAM_Proposition' to request the content.
+    // Calls static function bellow: parameters are data to store in table '*_iassign_submission'
+    // In 'locallib.php ! class ilm_settings ! static function build_ilm_tags($ilm_id, $options = array())' that calls 'build_ilm_tags(.)' from here
+    $iassign .= ilm_settings::build_ilm_tags($ilm->id, array(
+      "type" => "activity",
+      "notSEND" => "false",
+      "addresPOST" => $enderecoPOST,
+      "Proposition" => $end_file,
+      "special_param" => $special_param1,
+      "student_answer" => $student_answer,
+      "id_iLM_security" => $id_iLM_security,
+      "iassign_statement" => $iassign_statement_activity_item->id // MOOC 2016
+      ));
+
+    //DEBUG To verify iLM
+    //D $iassign .= "
+    //D <script type='text/javascript'>
+    //D //alert('./mod/iassign/ilm_handlers/html5.php: 1 window.frames[0].getEvaluation()=' + window.frames[0].getEvaluation()); //
+    //D alert('./mod/iassign/ilm_handlers/html5.php: 1 window.frames[0].getAnswer()=' + window.frames[0].getAnswer()); //
+    //D </script>\n";
+
+
+    if ($ilm->editingbehavior == 1 || !$student_answer) // the iLM allows editing old submission or has no previous solution send
+      $allow_submit_button = 1;
+    else
+      $allow_submit_button = 0;
+
+    //D echo "./iassign/ilm_handlers/html5.php: show_activity_in_ilm(.): ilm->action_buttons=" . $ilm->action_buttons . "<br/>";
+    //D echo " - iassign_statement_activity_item->type_iassign=" . $iassign_statement_activity_item->type_iassign . ", _GET['action']=" . $_GET['action'] . "<br/>";
+    // "iassign_statement_activity_item.type_iassign" == 1 => is activity of type "example" - not submit button for submission
+    // {iassign_ilm}.action_buttons==1 <=> do not use the submition button of the form
+    if (!isguestuser() && $iassign_statement_activity_item->type_iassign != 1 && $allow_submit_button == 1) {
+      //  ($ilm->editingbehavior == 1 || ($ilm->editingbehavior == 0 && !in_array($_GET['action'], array('viewsubmission', 'view')))))
+      //D echo " - entrou 1<br/>\n";
+      $iassign .= " <input type='hidden' name='iLM_PARAM_ArchiveContent' value=''>\n";
+      $iassign .= " <input type='hidden' name='iLM_PARAM_ActivityEvaluation' value=''>\n";
+      $iassign .= " <input type='hidden' name='iLM_PARAM_RealGrade' value=''>\n";
+
+      // Default: enable button to submit activity - need to avoid "Warning: Undefined variable $disabled_button in..."
+      $disabled_button = ""; // {iassign_ilm}.action_buttons==1 <=> do not use the submition button of the form
+      //2023/05/08 Desabilitado para evitar ficar sem o botao!
+      //2023/05/08 if ($ilm->action_buttons == 1) $disabled_button = "";
+      //2023/05/08 elseif ($ilm->action_buttons == 0) $disabled_button = " disabled='true' ";
+
+      // $iassign .= "<p><textarea rows='2' cols='60' name='submission_comment'></textarea></p>\n";
+
+      // Prepare button to send answer (calling the iLM getEvaluation())
+      // In "locallib.php!view_iassign_current()", if due date is excedeed (even with allow test {iassign_statement}.test==1): $enderecoPOST = "";
+      // For this reason, if $enderecoPOST == "", do NOT present submission button!
+      // {iassign_statement}.preventlate==0 <=> do NOT allow submission after due date
+      if ($enderecoPOST && $enderecoPOST!="&write_solution=1" && $enderecoPOST!="&write_solution=0") {
+        // There is a valid address - caution with $iassign_statement_activity_item->preventlate==1 <=> allow submission after due date
+        $iassign .= "<center>\n<!-- load button -->\n" .
+          " <br> <br> <button " . $disabled_button . " class='btn btn-primary' type=button value='" . get_string('submit_iassign', 'iassign') . "' " .
+          " onClick = 'window.flagclick = true; window.jsAnalyseAnswer();' title='" . get_string('message_submit_iassign', 'iassign') . "'>" .
+          get_string('submit_iassign', 'iassign') . "</button> <i id='check-message-success-submission' class='fa fa-check' aria-hidden='true' " .
+          " style='position: absolute; color: green; font-size: 2.0rem; margin-left: 1rem; visibility: hidden;'><span style='font-size: 1.0rem;'>" .
+          get_string('get_answer', 'iassign') . "</span></i><i id='error-message-submission' class='fa fa-times' aria-hidden='true' " .
+          " style='position: absolute; color: red; font-size: 2.0rem; margin-left: 1rem; visibility: hidden;'><span style='font-size: 1.0rem;'>" .
+          get_string('error_insert_submissions', 'iassign') . "</span></i>\n" . " <div class='spinner-border' style='position: absolute; margin-left: 1rem; visibility: hidden;' " .
+          " id='spinner-loading' role='status'><span class='sr-only'>Loading...</span>\n  </div> </center>\n";
+        }
+      } // if (!isguestuser() && $iassign_statement_activity_item->type_iassign != 1 && $allow_submit_button == 1)
+
+    elseif ($ilm->editingbehavior == 0 && $student_answer) { // already send some answer
+      // Button to redo the activity
+      //D echo " - entrou 2<br/>\n";
+      $iassign .= "<center><br><a href=\"view.php?action=repeat&id=" . $_GET['id'] . "&iassign_current=" . $_GET['iassign_current'] . "\"> \n" .
+        "    <button type='button' class='btn btn-success' value='" . get_string('repeat', 'iassign') . "'>" . get_string('repeat', 'iassign') . "</button></a></center>\n";
+      }
+    //D else echo " - NAO entrou <br/>\n";
+
+    $iassign .= "</form></center>\n\n";
+    return $iassign;
+    } // public static function show_activity_in_ilm($iassign_statement_activity_item, $student_answer, $enderecoPOST, $view_teacherfileversion)
+
+
+  /// Presents iLM information
+  public static function view_ilm ($ilmid, $from) {
+    global $DB;
+
+    $url = new moodle_url('/admin/settings.php', array('section' => 'modsettingiassign'));
+    $iassign_ilm = $DB->get_record('iassign_ilm', array('id' => $ilmid));
+
+    $str = "";
+    $str .= '<table id="outlinetable" cellpadding="5" width="100%" >' . "\n";
+    $str .= '<tr>';
+    $str .= '<td colspan=3 align=right>';
+    if ($from != 'admin') {
+      $str .= '<input type=button value="' . get_string('return', 'iassign') . '"  onclick="javascript:window.location = \'' . $_SERVER['HTTP_REFERER'] . '\';">' . "\n";
+      }
+    $str .= '<input type=button value="' . get_string('close', 'iassign') . '"  onclick="javascript:window.close();">';
+    $str .= '</td>' . "\n";
+    $str .= '</tr>' . "\n";
+
+    if ($iassign_ilm) {
+      $iassign_statement_activity_item = $DB->get_records('iassign_statement', array("iassign_ilmid" => $iassign_ilm->id));
+      if ($iassign_statement_activity_item) {
+         $total = count($iassign_statement_activity_item);
+      } else {
+         $total = 0;
+         }
+
+      if ($from == 'admin') {
+        $str .= '<tr><td colspan=2>' . "\n";
+        $str .= '<table width="100%" class="generaltable boxaligncenter" >' . "\n";
+        $str .= '<tr>' . "\n";
+        $str .= '<td class=\'cell c0 actvity\' ><strong>' . get_string('activities', 'iassign') . ':</strong>&nbsp;' . $total . '</td>' . "\n";
+        $str .= '<td><strong>' . get_string('url_ilm', 'iassign') . '</strong>&nbsp;<a href="' . $iassign_ilm->url . '">' . $iassign_ilm->url . '</a></td>' . "\n";
+        $str .= '</tr>' . "\n";
+        $str .= '<tr><td colspan=2><strong>' . get_string('description', 'iassign') . ':</strong>&nbsp;' . iassign_language::get_description_lang(current_language(), $iassign_ilm->description) . '</td></tr>' . "\n";
+        $str .= '<tr><td width="50%"><strong>' . get_string('type_ilm', 'iassign') . ':</strong>&nbsp;' . $iassign_ilm->type . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<strong>' . get_string('extension', 'iassign') . ':</strong>&nbsp;' . $iassign_ilm->extension . '</td>' . "\n";
+        $str .= '<td width="50%"><strong>' . get_string('width', 'iassign') . ':</strong>&nbsp;' . $iassign_ilm->width;
+        $str .= '&nbsp;&nbsp;<strong>' . get_string('height', 'iassign') . ':</strong>&nbsp;' . $iassign_ilm->height . '</td></tr>' . "\n";
+
+        $date_jar = $iassign_ilm->file_jar;
+
+        $str .= '<tr><td><strong>' . get_string('file_jar', 'iassign') . ':</strong>&nbsp;' . $date_jar . '</td>' . "\n";
+        $str .= '<td ><strong>' . get_string('file_class', 'iassign') . ':</strong>&nbsp;' . $iassign_ilm->file_class . '</td></tr>' . "\n";
+        if ($iassign_ilm->evaluate == 1) {
+            $evaluate = get_string('yes', 'iassign');
+          } else {
+            $evaluate = get_string('no', 'iassign');
+          }
+        $str .= '<tr><td width="50%"><strong>' . get_string('evaluate', 'iassign') . ':</strong>&nbsp;' . $evaluate . '</td>' . "\n";
+        if ($iassign_ilm->enable == 1) {
+            $enable = get_string('yes', 'iassign');
+          } else {
+            $enable = get_string('no', 'iassign');
+          }
+        $str .= '<td width="50%"><strong>' . get_string('enable', 'iassign') . ':</strong>&nbsp;' . $enable . '</td></tr>' . "\n";
+        $str .= '<tr>' . "\n";
+        $str .= '<td width="50%"><strong>' . get_string('file_created', 'iassign') . ':</strong>&nbsp;' . userdate($iassign_ilm->timecreated) . '</td>' . "\n";
+        $str .= '<td width="50%"><strong>' . get_string('file_modified', 'iassign') . ':</strong>&nbsp;' . userdate($iassign_ilm->timemodified) . '</td>' . "\n";
+        $str .= '</tr>' . "\n";
+        $user_ilm = $DB->get_record('user', array('id' => $iassign_ilm->author));
+        if ($user_ilm) {
+            $str .= '<tr>' . "\n";
+            $str .= '<td colspan=2><strong>' . get_string('author', 'iassign') . ':</strong>&nbsp;' . $user_ilm->firstname . '&nbsp;' . $user_ilm->lastname . '</td>' . "\n";
+            $str .= '</tr>' . "\n";
+          }
+        $str .= '</table>' . "\n";
+        $str .= '</td></tr>' . "\n";
+        }
+
+      if (!empty($iassign_ilm->file_jar)) {
+        //TODO: REVIEW: to be used for parameters of "applet" from DB
+        $options = array("type" => "view"); //MOOC2014: start
+
+        $str .= '<tr class=\'cell c0 actvity\'><td  colspan=3 align=center bgcolor="#F5F5F5">' . "\n";
+
+        // Second parameter null since 'iassign_security' are not define yet
+        $str .= ilm_settings::build_ilm_tags($iassign_ilm->id, $options);
+
+        //TODO: REVIEW: missing code to manage parameters
+        //MOOC2014: tem este codigo!
+        } else {
+        $str .= '<tr class=\'cell c0 actvity\'>' . "\n";
+        $str .= '<td colspan=2 align=center>' . get_string('null_file', 'iassign') . '</td>' . "\n";
+        $str .= '<td align=center><a href="' . $url . '</a></td>' . "\n";
+        $str .= '</tr>' . "\n";
+        }
+      $str .= '</td></tr>' . "\n";
+      }
+
+    $str .= '</table>' . "\n";
+
+    return $str;
+    } // public static function view_ilm($ilmid, $from)
+
+
+  /// Make a copy or produce a new version of an iLM (using a ZIP package)
+  //  Interface: Administration > plugins > iAssign : after select the iLM and the option 'Add new iLM version'
+  //  @see      settings_ilm.php: $action == 'new_version'
+  //  @calledby locallib.php!copy_new_version_ilm($param): with $action=='new_version' or $action=='copy'
+  public static function copy_new_version_ilm ($param, $files_extract) {
+    global $DB, $CFG;
+
+    $iassign_ilm = new stdClass();
+    $iassign_ilm->name = $param->name;
+    $iassign_ilm->version = $param->version;
+    $iassign_ilm->file_jar = null;
+
+    //D echo "html5.php!copy_new_version_ilm(.): <br/>"; // . $type_ipz_zip . "<br/>";
+    //D // echo "param="; print_r($param);
+    //D echo "Construir 'application_xml'<br/>";
+    // Since we are using the same code that process IPZ package (that uses tags from "ilm-application.xml"), lets build it!
+    $application_xml = new stdClass(); // build object with fields equivalent to those in "ilm-application.xml" from IPZ importer
+    foreach ($param as $field => $value) {
+      $application_xml->$field = $value;
+      //D echo $field . "=" . $value . "; ";
+      }
+    //D $application_xml = @simplexml_load_file($CFG->dataroot . '/temp/' . 'ilm-application.xml', null, LIBXML_NOCDATA); // get XML fields
+    //D echo "<br/>file_jar=" . $file_jar . "<br/>";
+
+    $paramcopy_zip = "copy";
+    if ($param->action == "new_version")
+      $paramcopy_zip = "zip";
+    // It creates directory and iLM files on it, will return the iLM path (after iAssign dir.): ./ilm/...
+    $dir_and_file_jar = self::save_ilm_by_xml($paramcopy_zip, $application_xml, $files_extract);
+    $ilm_final_directory = $dir_and_file_jar[0]; // {iassign_ilm}.file_jar is the first element (not used here)
+    $file_jar = $dir_and_file_jar[1]; // {iassign_ilm}.file_jar is the second element (if null then occorred error, do not insert in {iassign_ilm})
+
+    //D echo "file_jar=" . $file_jar . "<br/>";
+    if ($file_jar == null) { // 'save_ilm_by_xml(...)' detected a problem (perhaps no write permission)
+      //D echo "Erro! file_jar==null<br/>"; exit;
+      return false;
+      }
+    
+    $file_jar = str_replace("./", "", $file_jar);
+    if ($file_jar[strlen($file_jar)-1]!=DIRECTORY_SEPARATOR)
+       $file_jar .= DIRECTORY_SEPARATOR; // add final separator "/"
+    //D echo "file_jar=" . $file_jar . "<br/>";
+    //D exit; // to debug, stop here - before insert in {iassign_ilm} table
+
+    // From a single text in default language => generate multi-language
+    //R $description = json_decode($param->description_lang);
+    //R $description->{$param->set_lang} = $param->description;
+    $description_json_lang = $param->description_lang;
+
+    $newentry = new stdClass();
+    $newentry->name = $param->name;
+    $newentry->version = $param->version;
+    $newentry->type = 'HTML5';
+    $newentry->url = $param->url;
+    $newentry->description = $description_json_lang; //R strip_tags(json_encode($description));
+    $newentry->extension = strtolower($param->extension);
+    $newentry->file_jar = $file_jar;
+    $newentry->file_class = $param->file_class;
+    $newentry->width = $param->width;
+    $newentry->height = $param->height;
+    $newentry->enable = 0;
+    $newentry->timemodified = $param->timemodified;
+    $newentry->timecreated = $param->timecreated;
+    $newentry->evaluate = $param->evaluate;
+    $newentry->author = $param->author;
+    $newentry->parent = $param->parent;
+
+    $newentry->id = $DB->insert_record("iassign_ilm", $newentry);
+
+    // log event --------------------------------------------------------------------------------------
+    iassign_log::add_log('copy_iassign_ilm', 'name: ' . $param->name . ' ' . $param->version, 0, $newentry->id);
+    // log event --------------------------------------------------------------------------------------
+    } // public static function copy_new_version_ilm($param, $files_extract)
+
+
+  /// Export the iLM to the IPZ package
+  //  @calledby locallib.php : export_ilm($ilm_id) : require_once 'ilm_handlers/' . $typec . '.php'; $typec::export_ilm($ilm_id);
+  public static function export_ilm ($ilm_id) {
+    global $DB, $CFG;
+
+    $iassign_ilm = $DB->get_record('iassign_ilm', array('id' => $ilm_id));
+
+    $iassign_ilm_configs = $DB->get_records('iassign_ilm_config', array('iassign_ilmid' => $ilm_id)); //MOOC 2016
+    //if (!$iassign_ilm_configs) return;
+    $files_jar = $iassign_ilm->file_jar;
+
+    $zip_filename = $CFG->dataroot . '/temp/ilm-' . iassign_utils::format_pathname($iassign_ilm->name . '-v' . $iassign_ilm->version) . '_' . date("Ymd-Hi") . '.ipz';
+    $zip = new zip_archive;
+    $zip->open($zip_filename);
+
+    $rootdir = $CFG->dirroot . '/mod/iassign/' . $files_jar;
+
+    $first_folder = str_replace($CFG->dirroot . '/mod/iassign/ilm/', "", $rootdir);
+    $zip->add_directory($first_folder);
+
+    $allfiles = self::list_directory($rootdir);
+    $i = 0;
+
+    foreach ($allfiles as $file) {
+      $mini = str_replace($CFG->dirroot . '/mod/iassign/ilm/', "", $file);
+      $mini = str_replace('//', "/", $mini);
+      if (is_dir($file)) {
+        $zip->add_directory($mini);
+      } else {
+        $zip->add_file_from_pathname($mini, $file);
+        }
+      }
+
+    $folder = str_replace('ilm/', "", $files_jar);
+    $application_descriptor = '<?xml version="1.0" encoding="utf-8"?>' . "\n";
+    $application_descriptor .= '<application xmlns="http://line.ime.usp.br/application/1.5">' . "\n"; //TODO: o que colocar aqui???
+    $application_descriptor .= '  <name>' . $iassign_ilm->name . '</name>' . "\n";
+    $application_descriptor .= '  <url>' . $iassign_ilm->url . '</url>' . "\n";
+    $application_descriptor .= '  <version>' . $iassign_ilm->version . '</version>' . "\n";
+    $application_descriptor .= '  <type>' . $iassign_ilm->type . '</type>' . "\n";
+    $application_descriptor .= '  <description>' . html_entity_decode(str_replace(array('<p>', '</p>'), array('', ''), $iassign_ilm->description)) . '</description>' . "\n";
+    $application_descriptor .= '  <extension>' . $iassign_ilm->extension . '</extension>' . "\n";
+    $application_descriptor .= '  <file_jar>' . $folder . '</file_jar>' . "\n";
+    $application_descriptor .= '  <file_class>' . $iassign_ilm->file_class . '</file_class>' . "\n";
+    $application_descriptor .= '  <width>' . $iassign_ilm->width . '</width>' . "\n";
+    $application_descriptor .= '  <height>' . $iassign_ilm->height . '</height>' . "\n";
+    $application_descriptor .= '  <evaluate>' . $iassign_ilm->evaluate . '</evaluate>' . "\n";
+    $application_descriptor .= '  <reevaluate>' . $iassign_ilm->reevaluate . '</reevaluate>' . "\n";
+    $application_descriptor .= '  <editingbehavior>' . $iassign_ilm->editingbehavior . '</editingbehavior>' . "\n";
+    $application_descriptor .= '  <submissionbehavior>' . $iassign_ilm->submissionbehavior . '</submissionbehavior>' . "\n"; // 0 => iLM has no submition button, use the form one
+    $application_descriptor .= '  <action_buttons>' . $iassign_ilm->action_buttons . '</action_buttons>' . "\n"; // {iassign_ilm}.ction_buttons==1 <=> do not use the submition button of the form
+
+    if ($iassign_ilm_configs) { //MOOC 2016
+      $application_descriptor .= '   <params>' . "\n";
+      foreach ($iassign_ilm_configs as $iassign_ilm_config) {
+        $application_descriptor .= '    <param>' . "\n";
+        $application_descriptor .= '     <type>' . $iassign_ilm_config->param_type . '</type>' . "\n";
+        $application_descriptor .= '     <name>' . $iassign_ilm_config->param_name . '</name>' . "\n";
+        $application_descriptor .= '     <value>' . $iassign_ilm_config->param_value . '</value>' . "\n";
+        $application_descriptor .= '     <description>' . htmlentities(str_replace("\n", "", $iassign_ilm_config->description)) . '</description>' . "\n";
+        $application_descriptor .= '     <visible>' . $iassign_ilm_config->visible . '</visible>' . "\n";
+        $application_descriptor .= '    </param>' . "\n";
+        }
+      $application_descriptor .= '   </params>' . "\n";
+      } //MOOC 2016
+
+    $application_descriptor .= '</application>' . "\n";
+
+    $zip->add_file_from_string('ilm-application.xml', $application_descriptor);
+    $zip->close();
+
+    header("Pragma: public");
+    header("Expires: 0");
+    header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+    header("Cache-Control: private", false);
+    header("Content-Type: application/zip");
+    header("Content-Disposition: attachment; filename=\"" . basename($zip_filename) . "\";");
+    header("Content-Transfer-Encoding: binary");
+    header("Content-Length: " . (filesize($zip_filename)));
+    set_time_limit(0);
+    readfile($zip_filename) || die("File not found.");
+    unlink($zip_filename);
+    exit;
+    } // public static function export_ilm($ilm_id)
+
+
+  /// Function for list the directory where iLM is allocated.
+  //  @param type $dir
+  //  @return type
+  static function list_directory ($dir) {
+    $files = array();
+    $cont = 0;
+    $ffs = scandir($dir);
+    unset($ffs[array_search('.', $ffs, true)]);
+    unset($ffs[array_search('..', $ffs, true)]);
+    if (count($ffs) < 1) {
+      return;
+      }
+    foreach ($ffs as $ff) {
+      $files[$cont] = $dir . "/" . $ff;
+      $cont++;
+      if (is_dir($dir . '/' . $ff)) {
+        $temp = self::list_directory($dir . '/' . $ff);
+        foreach ($temp as $t) {
+            $files[$cont] = $t;
+            $cont++;
+          }
+        }
+      }
+    return $files;
+    }
+
+
+  /// Function to really remove files from the iLM remove from interface to remove iLM)
+  //  @calledy   locallib.php!delete_ilm($ilm_id) : $return_ilm_parent_id = $typec::delete_ilm($ilm_id);
+  //  @param int $ilm_id is the iLM ID     ({iassign_ilm}.id)
+  //  @return int Return ID of parent iLM  ({iassign_ilm}.id)
+  public static function delete_ilm ($ilm_id) {
+    global $DB, $CFG, $OUTPUT;
+echo "ilm_handlers/html5.php!delete_ilm(.): remove www do " . $ilm_id. "<br/>\n"; //2025/04/11 leo
+
+    $iassign_ilm = $DB->get_record('iassign_ilm', array('id' => $ilm_id));
+    //D echo "ilm_handlers/html5.php!delete_ilm(.): ilm_id=" . $ilm_id . ", file_jar=" . $iassign_ilm->file_jar . "<br/>\n"; //exit; //2025/04/11 leo
+    // In case iLM has error in its path (perhaps during its creation or by misunderstanding edition)
+    if (!file_exists($iassign_ilm->file_jar)) {
+      //D echo "ilm_handlers/html5.php!delete_ilm(.): " . $iassign_ilm->file_jar . " nao existe, tenta completar<br/>\n"; //exit; //2025/04/11 leo
+      // iLM directory under which the new version will be created
+      $ilm_base_directory = "ilm/" . $iassign_ilm->name; // ./mod/iassign/ilm/<iLM name>
+      $ilm_directory_version = $ilm_base_directory . "/" . $iassign_ilm->version; // ./mod/iassign/ilm/<iLM name>/<iLM version>
+      $iassign_ilm->file_jar = $ilm_directory_version;
+      //D 
+echo "ilm_handlers/html5.php!delete_ilm(.): completado para:  " . $iassign_ilm->file_jar . "<br/>\n"; //exit; //2025/04/11 leo
+      }
+
+    // Prepare the path of directory to be removed
+    $path_w = rtrim($iassign_ilm->file_jar, "/"); // remove white space and "/" from the end of the string
+    $folder_to_remove = $path_w; // substr($path_w, 0, strrpos($path_w, '/') + 1); - ja tinha removido "/" final, com "rtrim(.)"
+echo "ilm_handlers/html5.php!delete_ilm(.): path_w="; print_r($path_w); echo "<br/> - folder_to_remove=" . $folder_to_remove . "<br/>\n"; //exit; //2025/04/11 leo
+      // ilm_handlers/html5.php!delete_ilm(.): path_w=ilm/iHanoi/1.0.20240815
+      //  - folder_to_remove=ilm/iHanoi/
+
+    // Check if the iLM directory is writable
+    if (!is_writable($iassign_ilm->file_jar)) {
+      //D echo "ilm_handlers/html5.php!delete_ilm(.): ilm_id=" . $ilm_id . ", ops, file_jar=" . $iassign_ilm->file_jar . " nao permite escrita<br/>\n"; //exit; //2025/04/11 leo
+      return null;
+      }
+
+    self::delete_dir("www", $folder_to_remove); // from WWW of Moodle
+
+    $ilm_folder = "ilm/" . $iassign_ilm->name . "/";
+    $k = 0;
+
+    // Verify if iLM parent directory is empty, if yes, remove it
+    foreach (glob($ilm_folder . "*", GLOB_ONLYDIR) as $dir) {
+      $k ++;
+      break; // it is enough 1 (implies not empty, implies do not remove "ilm/<iLM name>")
+      }
+
+    if ($k == 0) { // parent directory is empty => this is the last iLM version, so also remove the it root ./ilm/<iLM name>
+echo "ilm_handlers/html5.php!delete_ilm(.): if k==0, ilm_id=" . $ilm_id . ", k=" . $k . ", delete_dir(" . $ilm_folder . ")<br/>\n"; //exit; //2025/04/11 leo
+      self::delete_dir("www", $ilm_folder); // from WWW of Moodle
+      }
+else echo "ilm_handlers/html5.php!delete_ilm(.): else k==0, ilm_id=" . $ilm_id . ", k=" . $k . ", delete_dir(" . $ilm_folder . ")<br/>\n"; //exit; //2025/04/11 leo
+
+    $DB->delete_records("iassign_ilm", array('id' => $ilm_id));
+    $DB->delete_records("iassign_ilm_config", array('iassign_ilmid' => $ilm_id)); //MOOC 2016
+    // log event --------------------------------------------------------------------------------------
+    iassign_log::add_log('delete_iassign_ilm', 'name: ' . $iassign_ilm->name . ' ' . $iassign_ilm->version, 0, $iassign_ilm->id);
+    // log event --------------------------------------------------------------------------------------
+
+    return $iassign_ilm->parent;
+    } // public static function delete_ilm($ilm_id)
+
+
+  /// Receive the updated data from an iLM to process it
+  //  @calledby locallib.php: static function edit_ilm($param,$itemid): $typec::edit_ilm($param,$itemid,$files_extract,$contextuser);
+  public static function edit_ilm ($param, $itemid, $files_extract, $contextuser) {
+    global $DB, $CFG;
+
+    $iassign_ilm = new stdClass();
+    $iassign_ilm->name = $param->name;
+    $iassign_ilm->version = $param->version;
+    $iassign_ilm->file_jar = $param->file_jar;
+
+    $file_jar = null;
+    if (!is_null($files_extract)) { // if there is a new iLM (from IPZ pachage)
+
+      $dir_and_file_jar = self::save_ilm_by_xml("edit", null, $files_extract);
+      $ilm_final_directory = $dir_and_file_jar[0]; // {iassign_ilm}.file_jar is the first element (not used here)
+      $file_jar = $dir_and_file_jar[1]; // {iassign_ilm}.file_jar is the second element
+
+      if ($file_jar == null) {
+        return false;
+        }
+      $file_jar = str_replace("./", "", $file_jar) . "/";
+      }
+    if (is_null($file_jar)) {
+      // there is not definition to 'file_jar' in the IPZ packege, use eventually something entered by the form
+      $file_jar = $param->file_jar;
+      }
+
+    $description = json_decode($param->description_lang);
+    $description->{$param->set_lang} = $param->description;
+
+    $updentry = new stdClass();
+    $updentry->id = $param->id;
+    $updentry->version = $param->version;
+    $updentry->url = $param->url;
+
+    // $updentry->description = json_encode($description); //R strip_tags(json_encode($description)); // will replace any special character by tags
+    // $updentry->description = html_entity_decode((String)$param->description_lang); - the same as above
+    $updentry->description = json_encode($description, JSON_UNESCAPED_UNICODE); // encode using UTF8
+
+    $updentry->extension = strtolower($param->extension);
+
+    if (!is_null($file_jar)) {
+      $updentry->file_jar = $file_jar;
+      }
+
+    $updentry->file_class = $param->file_class;
+    $updentry->width = $param->width;
+    $updentry->height = $param->height;
+    $updentry->enable = $param->enable;
+    $updentry->timemodified = $param->timemodified;
+    $updentry->evaluate = $param->evaluate;
+    $updentry->reevaluate = $param->reevaluate; // reevaluate = 1 => allows to the teacher calls method to re-evaluate (does it in batch, to all students)
+    $updentry->editingbehavior = $param->editingbehavior; // editingbehavior = 1 => iLM auto-evaluation remains working over a solution sent by the student (iGeom does not work, iVProg does)
+    $updentry->submissionbehavior = $param->submissionbehavior; // 0 => iLM has no submition button, use the form one; 1 => it has, use it
+
+    //D echo "./ilm_handlers/html5.php: edit_ilm(...): file_jar=$file_jar, file_class=" . $updentry->file_class . "<br/>"; //D exit;
+
+    $DB->update_record("iassign_ilm", $updentry);
+
+    // log event --------------------------------------------------------------------------------------
+    iassign_log::add_log('update_iassign_ilm', 'name: ' . $param->name . ' ' . $param->version, 0, $param->id);
+    // log event --------------------------------------------------------------------------------------
+    } // public static function edit_ilm($param, $itemid, $files_extract, $contextuser)
+
+
+//2023/05/30 
+// Removi funcao NAO mais usada: static function new_file_ilm ($itemid, $fs, $contextuser, $contextsystem, $files_ilm)
+// Tambem removi homonima de './iassign/locallib.php': static function new_file_ilm ($itemid, $iassign_ilm)
+// Para : /home/leo/projetos/iMA/lms/itarefa/novo/removidos/locallib_html_2023_05_30.php
+
+  // Help 'new_ilm(.)' to recover {iassign_ilm}.name with no more than 20 characters
+  public static function get_xml_name ($app_xml) {
+    if (!isset($app_xml)) return NULL;
+    $name = (String) $app_xml->name;
+    if (isset($name)) {
+      $itens = explode(":", $name); // try "iVProg: something"
+      $name = str_replace(" ", "_", $itens[0]); // avoid blanks in iLM name (to ./mod/iassign/ilm/<iLM name>)
+      if (strlen($name)>20) {
+        $name = substr($name, 0, 20); // {iassign}.name is char(20)
+        }
+      }
+    return $name;
+    }
+
+
+  /// Add a new iLM using form (and ZIP package)
+  //  Admin user: arrive here trhough admin interface to manage "Plugins | Activity modules" then choosing "Add iLM".
+  //  The admin must fill a form (with all iLM meta-data) and load a ZIP package, then 'save_ilm_by_xml(.)'
+  //  will create the directory ./mod/iassign/ilm/<iLM name>/<iLM version>/<base_name>
+  //  and using files and meta-data in 'ilm-application.xml' will insert iLM data into {iassign_ilm} table
+  //  Before reach here, it came from 'locallib.php!new_ilm($itemid)' that is called by 'settings_ilm.php'
+  //  Admin user in iLM manager interface (iassign/settings_ilm.php) clicks on the button "Add iLM".
+  //  After this, "iassign/settings_ilm.php" calls "locallib.php!new_ilm($itemid)" that
+  //  calls this function (to insert new iLM in database and in proper directory)
+  //  @calledby ./mod/iassign/locallib.php!new_ilm($itemid): $retorno = $typec::new_ilm($itemid, $files_extract, $iassign_ilm_instance, $contextuser, $fs);
+  public static function new_ilm ($itemid, $files_extract, $iassign_ilm_instance, $contextuser, $fs) {
+    global $DB, $CFG, $USER, $OUTPUT;
+
+    $description_str = $iassign_ilm_instance->description; // to {iassign_ilm}.description
+
+    // If necessary truncate (String)$application_xml->name, since {iassign_ilm}.name has at most 20 characters!
+    //TODO: also can use 'iassign_utils::filename_from_iLM_name($iassign_ilm_instance->name, false);'
+    $ilm_trunc_name = html5::get_xml_name($iassign_ilm_instance); // send all data, standardizer 'get_xml_name($app_xml)' will get the field 'name'
+    $array_ilm = array("name" => $ilm_trunc_name, "version" => $iassign_ilm_instance->version, "type" => $iassign_ilm_instance->type);
+    $iassign_ilm = $DB->get_record('iassign_ilm', $array_ilm);
+
+    $auxm = ": " . $ilm_trunc_name . ", " . $iassign_ilm_instance->version . ", " . $iassign_ilm_instance->type;
+
+    //D //xxxxxxxxxxxxxxxxxxx remover
+    //D $msg = " * new_ilm(.): files_extract: <br/>";
+    //D foreach ($files_extract as $key => $value) $msg .= " - diretorio = " . $diretorio . " (" . $key . "," . $value . ")<br/>\n";
+    //D echo $msg;
+    //D if ($iassign_ilm) echo "Entrara 1<br/>";
+    //D else echo "Entrara 2<br/>";
+    //D exit;
+
+    if ($iassign_ilm) { // there is such iLM (same name, version and type!)
+      foreach ($files_extract as $key => $value) {
+        $rootfolder = $CFG->dataroot . '/temp/' . $key;
+        self::delete_dir("data", $rootfolder); // from Moodle data
+        break;
+        }
+      print($OUTPUT->notification(get_string('error_import_ilm_version', 'iassign') . $auxm, 'notifyproblem')); // There is another iLM with the same version!
+      return false;
+      }
+    else { // if ($iassign_ilm)
+      //D $msg = " * new_ilm(.): files_extract: <br/>";
+      //D foreach ($files_extract as $key => $value) $msg .= " - diretorio = " . $diretorio . " (" . $key . "," . $value . ")<br/>\n";
+      //D echo $msg; exit;
+
+      // It creates directory and iLM files on it, will return the iLM path (after iAssign dir.): ./ilm/...
+      $dir_and_file_jar = self::save_ilm_by_xml("zip", $iassign_ilm_instance, $files_extract);
+      $ilm_final_directory = $dir_and_file_jar[0]; // {iassign_ilm}.file_jar is the first element (not used here)
+      $file_jar = $dir_and_file_jar[1]; // {iassign_ilm}.file_jar is the second element
+
+      if ($file_jar == null) {
+        return false;
+        }
+
+      //2022/05/13
+      //D echo "/var/www/html/saw2021_2/mod/iassign/ilm_handlers/html5.php: file_jar=" . $file_jar . "<br/>\n";
+      $file_jar = str_replace("./", "", $file_jar);
+      //D echo "/var/www/html/saw2021_2/mod/iassign/ilm_handlers/html5.php: file_jar=" . $file_jar . "<br/>\n";
+
+      if (empty($file_jar)) {
+        $msg_error = get_string('error_add_ilm', 'iassign') . "<br/>In new_ilm: file_jar empty, files_extract=" . $files_extract . "<br/>\n";
+        print_error($msg_error);
+        //xx print_error('error_add_ilm', 'iassign');
+        //print("New file = " . file_jar . "<br/>");
+        }
+      else { // if (empty($file_jar))
+        //TODO {iassign_ilm}.name has at most 20 characters!
+        // $ilm_trunc_name = (String) $iassign_ilm_instance->name;  
+        $iassign_ilm = $DB->get_record('iassign_ilm', array("parent" => 0, "name" => $ilm_trunc_name));
+        if (!$iassign_ilm) {
+          $iassign_ilm = new stdClass(); //MOOC 2016
+          $iassign_ilm->id = 0;
+          }
+
+        $newentry = new stdClass();
+        $newentry->name = $ilm_trunc_name; // html5::get_xml_name($iassign_ilm_instance); // be sure {iassign_ilm}.name is up to char(20)
+        $newentry->version = (String) $iassign_ilm_instance->version;
+        $newentry->type = (String) $iassign_ilm_instance->type;
+        $newentry->url = (String) $iassign_ilm_instance->url;
+        $newentry->description = strip_tags($description_str);
+        $newentry->extension = strtolower((String) $iassign_ilm_instance->extension);
+        $newentry->file_jar = $file_jar . "/";
+        $newentry->file_class = (String) $iassign_ilm_instance->file_class;
+        $newentry->width = (String) $iassign_ilm_instance->width;
+        $newentry->height = (String) $iassign_ilm_instance->height;
+        $newentry->enable = 0;
+        $newentry->timemodified = time();
+        $newentry->author = $USER->id;
+        $newentry->timecreated = time();
+        $newentry->evaluate = (String) $iassign_ilm_instance->evaluate;
+        $newentry->reevaluate = (String) $iassign_ilm_instance->reevaluate;
+        $newentry->parent = $iassign_ilm->id;
+        $newentry->editingbehavior = (String) $iassign_ilm_instance->editingbehavior;
+        $newentry->submissionbehavior = (String) $iassign_ilm_instance->submissionbehavior; // 0 => iLM has no submition button, use the form one; 1 => it has, use it
+        $newentry->action_buttons = (String) $iassign_ilm_instance->action_buttons; // {iassign_ilm}.action_buttons==1 <=> do not use the submition button of the form
+
+        $newentry->id = $DB->insert_record("iassign_ilm", $newentry); //leo voltar
+
+        // log event --------------------------------------------------------------------------------------
+        iassign_log::add_log('add_iassign_ilm', 'name: ' . $newentry->name . ' ' . $newentry->version, 0, $newentry->id); //2023/05/08 //leo voltar
+        // log event --------------------------------------------------------------------------------------
+
+        if ($iassign_ilm_instance->params->param) {
+          foreach ($iassign_ilm_instance->params->param as $value) {
+            $newentry = new stdClass();
+            $newentry->iassign_ilmid = $iassign_ilmid;
+            $newentry->param_type = (String) $value->type;
+            $newentry->param_name = (String) $value->name;
+            $newentry->param_value = (String) $value->value;
+            $newentry->description = html_entity_decode((String) $value->description);
+            $newentry->visible = (String) $value->visible;
+            $newentry->id = $DB->insert_record("iassign_ilm", $newentry); //2023/05/08 //leo voltar
+            if (!$newentry->id) {
+              print_error('error_add_param', 'iassign');
+              }
+            }
+          } // if ($iassign_ilm_instance->params->param)
+        } // else // if (empty($file_jar))
+      } // else // if ($iassign_ilm)
+
+    $resp = $fs->delete_area_files($contextuser->id, 'user', 'draft', $itemid);
+//exit; //xxxxxxxxxxxxxxxxxxx remover
+    return true;
+    } // public static function new_ilm($itemid, $files_extract, $iassign_ilm_instance, $contextuser, $fs)
+
+
+  // Adjust the cases in which 'ilm-application.xml' presents 'file_jar' starting with './' and does not have '/' in its final
+  // @return $file_jar cleaned and with '/' final
+  public static function adjust_File_jar ($file_jar) {
+    $file_jar = trim($file_jar); // strip whitespace (or other characters) from the beginning and end of a string
+    $file_jar = str_replace("./", "", $file_jar); // do not use tag 'file_jar' from 'ilm-application.xml', use actual directory name
+    $size_file_jar = strlen($file_jar);
+    if ($size_file_jar>0) {
+      if ($file_jar[0] == '/') {
+        $file_jar = substr($file_jar, 1, $size_file_jar-1); // erase initial '/'
+        $size_file_jar--;
+        }
+      if ($file_jar[$size_file_jar-1] != "/") // does not end with "/" => insert it
+        $file_jar .= '/'; // add final '/'
+      }
+    return $file_jar;
+    }
+
+  /// Import a iLM from IPZ package
+  //  Admin user: arrive here trhough admin interface to manage "Plugins | Activity modules" then choosing "Import iLM".
+  //  The admin must load the IPZ package, then 'save_ilm_by_xml(.)' will create the directory ./mod/iassign/ilm/<iLM name>/<iLM version>/<base_name>
+  //  and using files and meta-data in 'ilm-application.xml' will insert iLM data into {iassign_ilm} table
+  //  @calledby locallib.php!import_ilm($itemid)
+  public static function import_ilm ($itemid, $files_extract, $application_xml, $contextuser, $fs) {
+    global $DB, $CFG, $USER, $OUTPUT;
+
+    $description_str = str_replace(array('<description>', '</description>'), array('', ''), $application_xml->description->asXML());
+    //D- echo "html5.php!import_ilm(...): application_xml=|"; print_r($application_xml); echo "|<br/>\n"; //exit;
+
+    //TODO {iassign_ilm}.name has at most 20 characters!
+    $iassign_ilm = $DB->get_record('iassign_ilm', array("name" => (String)$application_xml->name, "version" => (String)$application_xml->version));
+
+    if ($iassign_ilm) { // There is (at least) one iLM with this 'name' and this 'version'
+      foreach ($files_extract as $key0 => $value0) {
+        //D- echo " self::delete_dir - " . $key0 . " , " . $value0. "<br/>\n";
+        $rootfolder = $CFG->dataroot . '/temp/' . $key0;
+        self::delete_dir("data", $rootfolder); // from Moodle data
+        break;
+        }
+      unlink($CFG->dataroot . '/temp/' . "ilm-application.xml"); // also remove the "ilm-application.xml" file
+      print($OUTPUT->notification(get_string('error_import_ilm_version', 'iassign'), 'notifyproblem'));
+      }
+    else {
+      // This explode IPZ package coping all of its file/directories to ./mod/iassign/ilm/<iLM name>/<iLM version>/<base_name>
+      // The <base_name> will be deduced from IPZ package, it must be the directory name containing files, i.e.
+      // the directory at the same level of 'ilm-application.xml' descriptor file.
+      // ATENTION: the tag 'file_jar' must coincide <base_name>, i.e. descriptor must have "<file_jar>base_name</file_jar>"
+
+      $dir_and_file_jar = self::save_ilm_by_xml("ipz", $application_xml, $files_extract); // really creates iLM directory under ilm/<iLM name>/<iLM version>/<file_jar>
+
+      $ilm_final_directory = $dir_and_file_jar[0]; // {iassign_ilm}.file_jar is the first element (not used here)
+      $file_jar = $dir_and_file_jar[1]; // {iassign_ilm}.file_jar is the second element
+echo "dir_and_file_jar : ilm_final_directory="; print_r($ilm_final_directory); echo "<br/>file_jar="; print_r($file_jar); //exit;
+
+      if (!is_dir($file_jar)) { // If the admin does not includes "ilm/<iLM name>" add it to the $file_jar (since this path is necessary)
+        // $items = explode("/", $ilm_final_directory); // get [<iLM name>, <iLM version>]
+        // $iLMname = $items[0];
+	$file_jar = "ilm" . DIRECTORY_SEPARATOR . $ilm_final_directory . DIRECTORY_SEPARATOR . $file_jar;
+echo " - completado file_jar=" . $file_jar. "<br/>\n"; //2025/04/11 leo
+        }
+// ilm_final_directory=iHanoi/1.0.20240815, file_jar=ihanoi/
+      if ($file_jar == null) {
+        exit; // this allow to keep the error message into the interface
+        // return false;
+        }
+
+      // If necessary truncate (String)$application_xml->name, since {iassign_ilm}.name has at most 20 characters!
+      $ilm_xml_name = html5::get_xml_name($application_xml);
+ 
+      // Adjust the cases in which 'ilm-application.xml' presents 'file_jar' starting with './' and does not have '/' in its final
+      // $file_jar = html5::adjust_File_jar($file_jar); // do not use tag 'file_jar' from 'ilm-application.xml', use actual directory name
+      if (empty($file_jar)) {
+        $msg_error = get_string('error_add_ilm', 'iassign') . "<br/>In import_ilm: file_jar empty, files_extract=" . $files_extract . "<br/>\n";
+        print_error($msg_error); //xx print_error('error_add_ilm', 'iassign'); //D print("Import file = " . file_jar . "<br/>");  
+        }
+      else { // if (empty($file_jar))
+        $iassign_ilm = $DB->get_record('iassign_ilm', array("parent" => 0, "name" => $ilm_xml_name));
+        if (!$iassign_ilm) { // New iLM (it does not have any parent)
+          $iassign_ilm = new stdClass();
+          $iassign_ilm->id = 0;
+          }
+        //D- echo " - html5.php!import_ilm(.): ilm_xml_name=" . $ilm_xml_name . ", parent = iassign_ilm->id = " . $iassign_ilm->id . "<br/>\n"; //xxxxxxxxxx //2023/05/08 //leo remover
+
+        $newentry = new stdClass();
+        $newentry->name = $ilm_xml_name;
+        $newentry->version = (String) $application_xml->version;
+        $newentry->type = (String) $application_xml->type;
+        $newentry->url = (String) $application_xml->url;
+        $newentry->description = strip_tags($description_str);
+        $newentry->extension = strtolower((String) $application_xml->extension);
+        $newentry->file_jar = $file_jar; // it must ends with '/' - see 'adjust_File_jar(.)'
+
+        $newentry->file_class = (String) $application_xml->file_class;
+        $newentry->width = (String) $application_xml->width;
+        $newentry->height = (String) $application_xml->height;
+        $newentry->enable = 0;
+        $newentry->timemodified = time();
+        $newentry->author = $USER->id;
+        $newentry->timecreated = time();
+        $newentry->evaluate = (String) $application_xml->evaluate;
+        $newentry->reevaluate = (String) $application_xml->reevaluate;
+        $newentry->editingbehavior = (String) $application_xml->editingbehavior;
+        $newentry->submissionbehavior = (String) $application_xml->submissionbehavior; // 0 => iLM has no submition button, use the form one; 1 => it has, use it
+        $newentry->action_buttons = (String) $application_xml->action_buttons; // {iassign_ilm}.action_buttons==1 <=> do not use the submition button of the form
+        $newentry->parent = $iassign_ilm->id;
+
+        $iassign_ilmid = $DB->insert_record("iassign_ilm", $newentry); // insert in {iassign_ilm} table
+        if ($application_xml->params->param) {
+          foreach ($application_xml->params->param as $value) {
+            $newentry = new stdClass();
+            $newentry->iassign_ilmid = $iassign_ilmid;
+            $newentry->param_type = (String) $value->type;
+            $newentry->param_name = (String) $value->name;
+            $newentry->param_value = (String) $value->value;
+            $newentry->description = html_entity_decode((String) $value->description);
+            $newentry->visible = (String) $value->visible;
+
+            $newentry->id = $DB->insert_record("iassign_ilm", $newentry);
+
+            if (!$newentry->id) {
+              print_error('error_add_param', 'iassign');
+              }
+            }
+          } // if ($application_xml->params->param)
+        } // else if (empty($file_jar))
+
+      print $OUTPUT->notification(get_string('ok_import_ilm_version', 'iassign'), 'notifysuccess'); // The iLM was successfully imported!
+      }
+
+    $fs->delete_area_files($contextuser->id, 'user', 'draft', $itemid);
+    //D- echo " - import_ilm(.): newentry ="; print_r($newentry); echo "<br/>\n"; //xxxxxxxxxx //2023/05/08 //leo remover
+    } // public static function import_ilm($itemid, $files_extract, $application_xml, $contextuser, $fs)
+
+
+  /// Function for register iLM from XML descriptor (the 'ilm-application.xml' file in IPZ package)
+  //  It creates the correspondent directory (the insertion in {iassin_ilm} table is under 'import_ilm(.)' responsability)
+  //  @see      : self::copy_new_version_ilm($param,$files_extract); edit_ilm($param,$itemid,$files_extract,$contextuser); new_ilm($itemid,$files_extract,$application_xml,$contextuser,$fs); import_ilm($itemid,$files_extract,$application_xml,$contextuser,$fs);
+  //  @calledby : self::new_ilm($itemid,$files_extract,$application_xml,$contextuser,$fs) : $file_jar = self::save_ilm_by_xml($application_xml, $files_extract);
+  //  @param string $str_from Define the event origin ("copy", "edit", "zip" or "ipz")
+  //  @param array $application_xml Data of XML descriptor (with all {iassign_ilm} field and something more)
+  //  @param array $files_extract Filenames of extract files
+  //  @return string with the iLM path (since ./ilm/...)
+  static function save_ilm_by_xml ($str_from, $application_xml, $files_extract) {
+    global $CFG, $USER, $OUTPUT;
+
+    $ds = DIRECTORY_SEPARATOR; // to short name
+    $source = "";
+    $temp_directory = "";
+
+    //D echo "html5.php!save_ilm_by_xml(.): " .$str_from . "<br/>";
+    $html_header = "";
+
+    // ./lib/outputrenderers.php: public function notification($message, $type = null, $closebutton = true)
+    $html_header_end = "</html></body>";  // in case of erro, to close HTML format window frame (to be used with '$OUTPUT->notification(.)"
+
+    // Check if the iLM directory is writable: ./mod/iassign/ilm
+    if (!is_writable("ilm")) { // is writable the directory "/moodle/mod/iassign/ilm/"?
+      // Error: There are no permission to modify files in iLM directory. Please, you need to verify iLM directory permissions (Moodle admin prerogative)!
+      $err_msg  = $html_header . get_string('error_folder_permission_denied', 'iassign') . "<br/>\n";
+      $err_msg .= get_string('error_folder_permission_dir', 'iassign') . " ./mod/iassign/ilm"; // Directory:
+      print $OUTPUT->header() . $OUTPUT->heading(get_string('error_folder_permission_create', 'iassign')); // "iLM creation error: directory without permission"
+      print $OUTPUT->notification($err_msg, 'notifyproblem') . $html_header_end;
+      exit; // ensure do not follow processing...
+      }
+
+    // The filter 'filename_from_iLM_name(...)' is essential to clear the name for directory from the iLM original name,
+    // it is used to define the field {iassign_ilm}.name has at most 20 characters!
+    // ./mod/iassign/locallib.php!(class iassign_utils) filename_from_iLM_name($ilm_name,$is_lowercase=true): remove special char; find initial name
+    $application_file_name = iassign_utils::filename_from_iLM_name($application_xml->name, false); //TODO: also can use html5::get_xml_name($application_xml);
+
+    //D //2025/04/09 echo "html5.php!save_ilm_by_xml(.): application_file_name=" . $application_file_name . ", str_from=" . $str_from . "<br/>"; //exit;
+
+    if ($str_from == "ipz") { // come from "ilm-application.xml" (IPZ)
+      // From XML arrives only one directory (iLM base), we must complete the path to create iLM directory under WWW
+
+      // Apply the same filter to avoid special character in the internal directory name {iassign_ilm}.file_jar
+      // We need to produze  {iassign_ilm}.file_jar with a complete path (e.g., to iFraction: "ilm/iFractions/3.1.0/ifractions/")
+      $file_jar = iassign_utils::filename_from_iLM_name($application_xml->file_jar, false); // in "locallib.php": static function filename_from_iLM_name($ilm_name, $is_lowercase = true)
+
+      // iLM directory under which the new version will be created: the final directory will also have the suffix given by $file_jar
+      $ilm_base_directory = "ilm" . $ds . $application_file_name; // ./mod/iassign/ilm/<iLM name>
+      $ilm_directory_version = $ilm_base_directory . $ds . $application_xml->version; // ./mod/iassign/ilm/<iLM name>/<iLM version>
+      if ($CFG->debugdisplay) { // debug messages is turned on
+        print "ilm_handlers/html5.php!save_ilm_by_xml(.): file_jar=" . $file_jar . ", ilm_base_directory=" . $ilm_base_directory . ", version=" . $application_xml->version . "<br/>\n"; //DEBUG
+        }
+
+      // Final directory of the new iLM: in ./mod/iassign/ilm/
+      // $ilm_final_directory  = "ilm" . $ds . $application_file_name . $ds . $application_xml->version; // ilm/<iLM name>/<iLM version>
+      // $ilm_final_directory .= $ds . $file_jar; // ilm/<iLM name>/<iLM version>/<base_name>/
+      //2025/04/09 echo "html5.php!save_ilm_by_xml(.): file_jar=" . $file_jar . "<br/>"; //
+      $ilm_final_directory = $file_jar; // ilm/<iLM name>/<iLM version>/<base_name>/
+      //2025/04/09 static function save_ilm_by_xml($str_from, $application_xml, $files_extract)
+
+      $sizedir = strlen($ilm_final_directory);
+      if ($sizedir>0 && $ilm_final_directory[$sizedir-1] == $ds) // remove last "/"
+        $ilm_final_directory = substr($ilm_final_directory, 0, $sizedir-1);
+      }
+    else { // come from form (ZIP) or "ilm-application.xml" (IPZ)
+      //2025/04/09 echo "html5.php!save_ilm_by_xml(.): opa, NAO esperava chegar nesse ponto!<br/>"; //exit;
+      $file_jar = $application_xml->file_jar;
+      $ilm_base_directory = "ilm" . $ds . $application_file_name; // ./mod/iassign/ilm/<iLM name>
+      $ilm_directory_version = $ilm_base_directory . $ds . $application_xml->version; // ilm/<iLM name>/<iLM version>
+      // Final directory of the new iLM: in ./mod/iassign/ilm/
+      // $ilm_final_directory  = $ilm_directory_version . $ds . $application_xml->version; // ilm/<iLM name>/<iLM version>
+      $ilm_final_directory = $ilm_directory_version . $ds . $application_file_name; // ilm/<iLM name>/<iLM version>/<base_name>/
+      //D echo "file_jar=" . $file_jar . ", ilm_directory=" . $ilm_base_directory . ", ilm_directory_version=" . $ilm_directory_version . "<br/>";
+      //D echo "ilm_final_directory=" . $ilm_final_directory . "<br/>";
+      }
+
+    //D echo "save_ilm_by_xml(.): file_jar=" . $file_jar . ", ilm_directory=" . $ilm_base_directory . ", ilm_directory_version=" . $ilm_directory_version . "<br/>"; //exit;
+
+    // Moodle use "temp/" directory in MoodleData area to keep the IPZ package sent
+    $source_in_moodledata = null; // to get the directory on the IPZ file (on MoodleData)
+    $source_in_moodledata_root = $CFG->dataroot . $ds . "temp"; // to get the "ilm-application.xml" file (to remotion at the end)
+
+    // Package files been sending is under MoodleData: MoodleData/temp/<entry>
+    // Find the initial directory to be used as {iassign_ilm}.file_jar: looking at each <entry> em IPZ package
+    // ATTENTION: the ZIP or IPZ package must have all of its files inside a single directory, to be recovery bellow
+    $countDir = 0; // must be a single
+    $error = 0;    // if finished with positive implies error
+    $actual_file_jar = ""; // base directory with all iLM files - ideally must be equals to above $application_file_name
+    $second_file_jar = ""; // if was detect more than one directory at the root level of package
+    $temp_files = array(); // if package has not a single directory this will help to remove all the wrong files
+    $temp_dir = array(); // if package has not a single directory this will help to remove all the wrong directories
+    foreach ($files_extract as $key1 => $value1) {
+      $file_name = $CFG->dataroot . $ds . "temp" . $ds . $key1; // look at MoodleData/temp/<entry>
+      if (is_dir($file_name)) { // Is it a directory? (stop with the first directory)
+        if ($source_in_moodledata == null) { // not yet defined, use the first directory
+          $items = explode($ds, $key1);
+          if (count($items)>0) {
+            $actual_file_jar = $items[0];
+            $source_in_moodledata = $CFG->dataroot . $ds . "temp" . $ds . $items[0]; // to avoid the first be a sub-directory...
+            $countDir++;
+            }
+          else {
+            $actual_file_jar = $key1;
+            $source_in_moodledata = $file_name; // to avoid the first be a sub-directory...
+            }
+          $temp_dir[] = $source_in_moodledata; // if package has not a single directory this will help to remove all the wrong directories
+          }
+        else { // already defined "initial" file in $source_in_moodledata
+          $items = explode($ds, $key1);
+          $newdir = $items[0]; // eventually is sub-directory of $source_in_moodledata (which is allowed)
+          $newdir_complete = $CFG->dataroot . $ds . "temp" . $ds . $newdir;
+          if (!in_array($newdir_complete, $temp_dir)) // new dir to the list of directories to be remove
+            $temp_dir[] = $newdir_complete; // if package has not a single directory this will help to remove all the wrong directories
+          if ($newdir != $actual_file_jar) { // ups, other main directory!
+            $countDir++;
+            $second_file_jar = $newdir;
+            $error = 1; // more than one directory inside package: $newdir, $actual_file_jar
+            }
+          }
+        } // if (is_dir($file_name))
+      else { // is file
+        $items = explode($ds, $key1); // eventually is sub-directory of $source_in_moodledata (which is allowed)
+        if (count($items)>1) // it is allowed (files under the root level directory)
+          continue;
+        $filename = $items[0]; // get the first
+        $temp_files[] = $CFG->dataroot . $ds . "temp" . $ds . $filename; // if package has not a single directory this will help to remove all the wrong files
+        if ($filename != "ilm-application.xml") {
+          $error = 2; // error, all files (but 'ilm-application.xml') must be under a single directory!
+          //D $items = explode($ds, $key1); echo " +++ key1=" . $key1 . " count=" . count($items) . "<br/>"; if (count($items)==1)
+          }
+        }
+      } // foreach
+    if ($error>0) {
+      $param = new stdClass(); $param->dir1 = $actual_file_jar; $param->dir2 = $second_file_jar;
+      $msg1 = get_string('error_zip_ipz_single_directory', 'iassign'); // Error! The ZIP or IPZ package must have all of its files inside a single directory.
+      $msg2 = get_string('error_zip_ipz_more_directories', 'iassign', $param); // Was found at least two sub-directories inside the package: "{$a}" and "{$b}"
+      $msg3 = get_string('error_zip_ipz_file_in_pack', 'iassign'); // Was found at least one file (other than "ilm-application.xml") at the root level of the package:
+      $err_msg  = $html_header . $msg1 . "<br/>\n";
+      if ($error == 1) {
+        $err_msg .= $msg2; // "Was found at least two sub-directories inside the package: {$actual_file_jar} and {$key1}
+        }
+      else { // other file than 'ilm-application.xml' inside the package at root level
+        $err_msg .= $msg3 . ' ' . $key1; // Was found at least one file (other than 'ilm-application.xml') at the root level of the package:
+        }
+      foreach ($temp_files as $one_file) { // $temp_files // if package has not a single directory this will help to remove all the wrong files
+        //D echo $one_file . "<br/>";
+        unlink($one_file); // $source_in_moodledata_root . $ds . $one_file
+        }
+      foreach ($temp_dir as $one_dir) { // $temp_files // if package has not a single directory this will help to remove all the wrong directories
+        //D echo $one_dir . "<br/>";
+        self::delete_dir("data", $one_dir); // try to remove source directories from MoodleData - $source_in_moodledata_root . $ds . $one_dir
+        }
+      self::delete_dir("data", $CFG->dataroot . $ds . "temp" . $ds . "filestorage"); // remove auxiliary Moodle directory (created during the process)
+
+      print $OUTPUT->header() . $OUTPUT->heading(get_string('error_zip_ipz', 'iassign')); // "iLM creation error: fail in package ZIP or IPZ
+      print $OUTPUT->notification($err_msg, 'notifyproblem') . $html_header_end;
+      exit; // ensure do not follow processing...
+      }
+
+    //D echo "html5.php!save_ilm_by_xml(.): (1) ilm_directory=" . $ilm_base_directory . "<br/>"; // html5.php!save_ilm_by_xml(.): (1) ilm_directory=ilm/iHanoi
+    // Check if iLM root directory already exists
+    if (!file_exists($ilm_base_directory)) { // If the root iLM directory does exist, create "./mod/iassign/ilm/<LM name>"
+      //D echo "html5.php!save_ilm_by_xml(.): (2) ilm_directory=" . $ilm_base_directory . "<br/>";
+      if (!is_writable("ilm")) { // can be created "./mod/iassign/ilm/<iLM name>" in "./mod/iassign/ilm/"?
+        //D echo "html5.php!save_ilm_by_xml(.): (3) is_writable(ilm)<br/>";
+        // Error: There are no permission to modify files in iLM directory. Please, you need to verify iLM directory permissions (Moodle admin prerogative)!
+        $err_msg  = $html_header . get_string('error_folder_permission_denied', 'iassign') . "<br/>\n";
+        $err_msg .= get_string('error_folder_permission_ilmdir', 'iassign') . " " . $ilm_base_directory; // iLM directory:
+        print $OUTPUT->header() . $OUTPUT->heading(get_string('error_folder_permission_create', 'iassign')); // "iLM creation error: directory without permission"
+        print $OUTPUT->notification($err_msg, 'notifyproblem') . $html_header_end;
+        exit; // ensure do not follow processing...
+        }
+      mkdir($ilm_base_directory, 0755, true); // create directory - 755 = (111)(101)(101) = rwxr-xr-x
+      if (!file_exists($ilm_base_directory . $ds . "index.html")) // if does not already exist "index.html" create an empty one
+        touch($ilm_base_directory . $ds . "index.html");
+      //D echo "html5.php!save_ilm_by_xml(.): (4) mkdir " . $ilm_base_directory . "<br/>";
+      }
+
+    // Check if does note already exists the directory to this iLM version 
+    if (!file_exists($ilm_directory_version)) {
+      if (!is_writable($ilm_base_directory)) { // ./mod/iassign/ilm/<iLM name>: can not create ./mod/iassign/ilm/<iLM name>/<iLM version>
+        $err_msg  = $html_header . get_string('error_folder_permission_denied', 'iassign') . "<br/>\n"; // Error: There are no permission to modify files in iLM directory. Please,...
+        $err_msg .= get_string('error_folder_permission_ilmver', 'iassign') . " " . $ilm_directory_version;   // "iLM version directory: "
+        print $OUTPUT->header() . $OUTPUT->heading(get_string('error_folder_permission_create', 'iassign')); // "iLM creation error: directory without permission"
+        print $OUTPUT->notification($err_msg, 'notifyproblem') . $html_header_end;
+        return [$ilm_directory_version, null]; // null will indicate to 'import_ilm(.)' an error (avoid to write in table {iassign_ilm})
+        exit; // ensure do not follow processing...
+        }
+      mkdir($ilm_directory_version, 0755, true);
+      if (!file_exists($ilm_directory_version . $ds . "index.html")) // if does not already exist "index.html" create an empty one
+        touch($ilm_directory_version . $ds . "index.html");
+      }
+    else { // the iLM directory and version already exists
+      // $ilm_trunc_name, $iassign_ilm_instance
+      $auxm = "<br/>" . get_string('error_import_ilm_version_type', 'iassign'). ": " . 
+        $application_xml->name . ", " . // {iassign_ilm}.name
+        $application_xml->version . ", " . // {iassign_ilm}.version
+        "html5"; // {iassign_ilm}.type
+      //D echo "save_ilm_by_xml(.): Erro! Diretorio '" . $ilm_directory_version . "' ja existe!<br/>(name,version,type)=" . $auxm;
+
+      $temp_directory = "." . $ds . $ilm_directory_version;
+      $err_msg  = $html_header . get_string('error_import_ilm_version', 'iassign') . $auxm . "<br/>\n"; // ERROR: this iLM version is already installed
+      $err_msg .= get_string('error_folder_permission_ilmver', 'iassign') . " " . $ilm_directory_version;   // "iLM version directory: "
+      if (!$OUTPUT->has_started())
+        print $OUTPUT->header();
+      print $OUTPUT->heading(get_string('error_import_ilm_version_exist', 'iassign')); // "There is already a iLM with this name and version"
+      print $OUTPUT->notification($err_msg, 'notifyproblem') . $html_header_end;
+      exit; // Better stop here! Otherwise the message in 'copy_new_version_ilm(.)' will use empty field "file_jar"
+      // return [$temp_directory, null]; // null  will indicate to 'import_ilm(.)' an error (avoid to write in table {iassign_ilm})
+      }
+
+    // Write from MoodleData to the final directory (in the WWW area): './mod/iassign/ilm/'
+    $rec_dir_md = new RecursiveDirectoryIterator($source_in_moodledata, RecursiveDirectoryIterator::SKIP_DOTS);
+    $iterator = new RecursiveIteratorIterator($rec_dir_md, RecursiveIteratorIterator::SELF_FIRST);
+    $wwwpath = getcwd(); // usually "/var/www/html/moodle/mod/iassign" considering "http://localhost/moodle/mod/iassign"
+    $ilm_complete_path_base = $wwwpath . $ds . $ilm_final_directory; // base iLM directory: /mod/iassign/ihanoi
+    if ($CFG->debugdisplay) { // debug messages is turned on
+      print "ilm_handlers/html5.php!save_ilm_by_xml(.): wwwpath=" . $wwwpath . ", ilm_complete_path_base=" . $ilm_complete_path_base . "<br/>\n"; //DEBUG
+      // ilm_handlers/html5.php!save_ilm_by_xml(.): wwwpath=/var/www/html/saw_limpo/mod/iassign, ilm_base=/var/www/html/saw_limpo/mod/iassign/ihanoi
+      } 
+
+    // Here, above: $application_file_name = iassign_utils::filename_from_iLM_name($application_xml->name, false); //TODO: also can use html5::get_xml_name($application_xml);
+    $ilm_final_directory = $application_file_name; // base iLM directory: iHanoi
+
+    // In case iLM has error in its path (perhaps during its creation or by misunderstanding edition)
+    if (!file_exists($ilm_complete_path_base)) { // perhaps reach here from IPZ with 'file_jar' with a single name (e.g. file_jar='ihanoi/')
+      if ($CFG->debugdisplay) { // debug messages is turned on
+        print "ilm_handlers/html5.php!save_ilm_by_xml(.): " . $ilm_complete_path_base . " does not exist! Try to complete<br/>\n"; //DEBUG
+        }
+      $ilm_complete_path_base = $wwwpath . $ds . "/ilm/" . $application_file_name;
+      if ($CFG->debugdisplay) { // debug messages is turned on
+        print "ilm_handlers/html5.php!save_ilm_by_xml(.): completed path base=" . $ilm_complete_path_base . "<br/>\n"; //DEBUG
+        }
+      }
+
+    //D echo "html5.php!save_ilm_by_xml(.): (5) wwwpath=" . $wwwpath . ", mkdir ilm_complete_path_base=" . $ilm_complete_path_base . "<br/>"; //  html5.php!save_ilm_by_xml(.): (5) wwwpath=/var/www/html/saw_limpo/mod/iassign, mkdir ilm_base=/var/www/html/saw_limpo/mod/iassign//ilm/iHanoi
+    //D mkdir ilm_base=/var/www/html/saw_limpo/mod/iassign//ilm/iHanoi
+
+    if (!is_dir($ilm_complete_path_base)) { // create base directory:  ./mod/iassign/ilm/<iLM name>
+      mkdir($ilm_complete_path_base, 0755, true);
+      touch($ilm_complete_path_base . $ds . "index.html"); // if does not appear any other "index"...
+      }
+
+    $ilm_path_version_filejar = $ilm_complete_path_base . $ds . $application_xml->version . $ds . $file_jar; // ./mod/iassign/ilm/<iLM name>/<iLM version>
+    $ilm_final_directory = $ilm_final_directory . $ds . $application_xml->version; // now base iLM directory: <iLM name>/<version>
+    if (!is_dir($ilm_path_version_filejar)) { // create base directory
+      //D echo "html5.php!save_ilm_by_xml(.): (6) mkdir ilm_path_version_filejar=" . $ilm_path_version_filejar . "<br/>";
+      mkdir($ilm_path_version_filejar, 0755, true); // create directory version: ./mod/iassign/ilm/<iLM name>/<iLM version>
+      touch($ilm_path_version_filejar . $ds . "index.html"); // if does not appear any other "index"...
+      }
+
+    $err_msg = "";
+    //D echo "html5.php: copiar<br/>";
+    //D foreach ($iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($source_in_moodledata, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST) as $item
+    foreach ($iterator as $item) {
+      $directory_name = $ilm_path_version_filejar . $ds . $iterator->getSubPathName(); // = $wwwpath . $ds . $ilm_final_directory . $ds . $iterator->getSubPathName();
+      if ($item->isDir()) {
+        mkdir($directory_name, 0755); // explicitly create with permission 0755 (others only can read and execute)
+        //D echo " + mkdir(" . $directory_name . ", 0755)<br/>";
+        touch($directory_name . $ds . "index.html"); // it creates empty "index" to avoid users to see all files directly
+        } 
+      else {
+        //D echo "html5.php!save_ilm_by_xml(.): (6) copy item para directory_name=" . $directory_name . "<br/>";
+        if (!copy($item, $directory_name)) //aqui
+          $err_msg .= "Error copy " . $item . " to " . $directory_name . "<br/>\n";
+        else { // Change permission: everything for owner, read and execute for others
+          chmod($directory_name, 0755); // (0)(111)(101)(101)
+          //D echo " + chmod(" . $directory_name . ", 0755)<br/>";
+          }
+        }
+      }
+    //D if ($err_msg!="") echo " + Erros:<br/>" . $err_msg;
+
+    self::delete_dir("data", $source_in_moodledata); // remove source file in the MoodleData
+    unlink($source_in_moodledata_root . $ds . "ilm-application.xml"); // also remove the "ilm-application.xml" file
+    rmdir($source_in_moodledata); // now remove the directory
+
+    //D echo "html5.php!save_ilm_by_xml(.): (7) devolva ilm_final_directory/file_jar, sendo: ilm_final_directory=" . $ilm_final_directory . ", file_jar=" . $file_jar . "<br/>";
+    //D // html5.php!save_ilm_by_xml(.): (7) devolva ilm_final_directory/file_jar, sendo: ilm_final_directory=iHanoi, file_jar=ihanoi/
+    // return [$ilm_final_directory . $ds, $file_jar];
+    return [$ilm_final_directory, $file_jar]; // [<iLM name>, <internal path>]
+    } // static function save_ilm_by_xml($str_from, $application_xml, $files_extract)
+
+
+  /// Function for delete directory where the iLM is allocated.
+  //  Remove iLM directories under WWW and temporary files of MoodleData (MoodleData/temp/)
+  //  @calledby  save_ilm_by_xml(.): self::delete_dir($source_in_moodledata); // remove source file in the MoodleData
+  //  @calledby  self::delete_dir($source_in_moodledata); // remove source file in the MoodleData
+  //  @calledby  some more
+  //  @param string $dirPath
+  //  @throws InvalidArgumentException
+  public static function delete_dir ($www_or_data, $dirPath) {
+    global $CFG;
+    var_dump(debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)); //2025/04/11 leo
+    echo "ilm_handlers/html5.php!delete_dir(.): www_or_data=" . $www_or_data . ", original dirPath=" . $dirPath . "<br/>\n"; //2025/04/11 leo
+    $dh = opendir($dirPath);
+    if (!$dh) {
+      echo "ilm_handlers/html5.php!delete_dir(.): dirPath=" . $dirPath . " NAO e' diretorio, esqueca!<br/>\n"; //2025/04/11 leo
+      // Error...
+      return false;
+      }
+
+    // To use 'unlink(.)' needs complete path:
+    if ($www_or_data == "www") { // came from here delete_ilm(.), then add path prefix
+      $dirPathC = $CFG->dirroot . DIRECTORY_SEPARATOR . "mod" . DIRECTORY_SEPARATOR . "iassign" . DIRECTORY_SEPARATOR . $dirPath;
+      if (is_dir($dirPathC)) { // came here with an incomplete path, complete it
+        $dirPath = $dirPathC;
+        echo "ilm_handlers/html5.php!delete_dir(.): novo dirPath=" . $dirPath . "<br/>\n"; //2025/04/11 leo
+        }
+      }
+
+    while (($file_name = readdir($dh)) !== false) {
+      if (!$file_name || $file_name == ".." || $file_name == ".")
+        continue; // ignore empty or subdirectories
+      if ($dirPath[strlen($dirPath) - 1] != '/') // avoid appand when it already has final "/"
+        $file_name = $dirPath . DIRECTORY_SEPARATOR . $file_name;
+      else
+        $file_name = $dirPath . $file_name;
+      if (is_dir($file_name)) { // recursivelly remove
+        self::delete_dir($www_or_data, $file_name);
+        $result = rmdir($file_name); // after removed its files, remove the directory
+        if ($CFG->debugdisplay) { // debug messages is turned on
+          if ($result) print "html5.php!delete_dir(.): after removed its files, remove the directory, file_name=" . $file_name . " successfully removed with 'unlink(file_name)'!<br/>";
+          else print "html5.php!delete_dir(.): after removed its files, remove the directory, file_name=" . $file_name . ", occurred an ERROR with 'unlink(file_name)'!<br/>";
+          }
+        }
+      else {
+        // ilm_handlers/html5.php!save_ilm_by_xml(.): www_or_data=www, original dirPath=ilm/iHanoi/
+        // ilm_handlers/html5.php!save_ilm_by_xml(.): novo dirPath=/var/www/html/saw_limpo/mod/iassign/ilm/iHanoi/
+        // ilm_handlers/html5.php!save_ilm_by_xml(.): www_or_data=www, original dirPath=/var/www/html/saw_limpo/mod/iassign/ilm/iHanoi/1.0.20200803
+        // ilm_handlers/html5.php!save_ilm_by_xml(.): novo dirPath=/var/www/html/saw_limpo/mod/iassign//var/www/html/saw_limpo/mod/iassign/ilm/iHanoi/1.0.20200803
+        //
+        // /var/www/html/saw_limpo/mod/iassign//var/www/html/saw_limpo/mod/iassign/ilm/iHanoi/1.0.20200803/index.html
+
+        if (!is_dir($file_name) || self::is_empty_dir($file_name)) { // Not directory or is empty directory, then remove it
+          $result = unlink($file_name); // remove this file
+          //x $result = unlink($file_nameC); // remove this file
+          if ($CFG->debugdisplay) { // debug messages is turned on
+            // dirPath   = ilm/iHanoi/1.0.20230525/ihanoi
+            // file_name = ilm/iHanoi/1.0.20230525/ihanoi/index_ihanoi.html
+            if ($result) print "html5.php!delete_dir(.): in dirPath=" . $dirPath . ", file_name=" . $file_name . " successfully removed with 'unlink(file_name)'!<br/>";
+            else print "html5.php!delete_dir(.): in dirPath=" . $dirPath . ", occurred an ERROR to remove " . $file_name . " with 'unlink(file_name)'!<br/>";
+            }
+          }
+        else echo "ilm_handlers/html5.php!delete_dir(.): file_name=" . $file_name . ", NAO e' diretorio limpo, esqueca<br/>\n";
+        }
+      } // while (($file_name = readdir($dh)) !== false)
+    closedir($dh);
+    if (is_dir($dirPath)) {
+      if (self::is_empty_dir($file_name)) { // If there is another iLM under this name, do not even try to remove!
+        $result = rmdir($dirPath); //TODO Warning: rmdir(/var/data/moodle_data_saw/temp/ivprog-html/js/semantic/): Directory not empty in /var/www/html/saw/...
+        // Esta sobrando diretorio no Moodle data! /var/data/saw_limpo/temp/ihanoi/img/*
+        //x $result = rmdir($dirPathC);
+        if ($CFG->debugdisplay) { // debug messages is turned on
+          if ($result) print "html5.php!delete_dir(.): in dirPath=" . $dirPath . " successfully removed with 'unlink(dirPath)'!<br/>\n";
+          else print "html5.php!delete_dir(.): occurred an ERROR to remove " . $dirPath . " with 'unlink(dirPath)'!<br/>dirPath=" . $dirPath . "<br/>\n";
+          }
+        }
+      } // if (is_dir($dirPath))
+    // if (error) {
+    //   print($OUTPUT->notification(get_string('error_file_jar_exists', 'iassign'), 'notifyproblem')); // just warning the user
+    //   //D echo "./mod/iassign/ilm_handlers/html5.php: delete_dir(" . $dirPath . "): " . $error_msg . "<br/>\n";
+    //   $error_msg = get_string('error_file_jar_exists', 'iassign') . "<br/>\nThere was no directory " . $dirPath . " to be removed";
+    //   print($OUTPUT->notification($error_msg, 'notifyproblem')); // just warning the user"
+    //   If the directory does not exist, simply ignore it!
+    //   }
+    } // public static function delete_dir($www_or_data, $dirPath)
+
+  } // class html5 implements ilm_handle
+
+?>

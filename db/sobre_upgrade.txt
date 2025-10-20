@@ -1,0 +1,6 @@
+
+/home/leo/projetos/iMA/lms/itarefa/novo/iassign/db/
+
+upgrade_2022_10_26_12_12.php: removi atualizacao exclusiva SAW para {iassign_ilm}.id=57 (iVProg); texto Portugues para Ingles (" Update iVProg JS to the latest version...")
+upgrade_2022_10_19_12_54.php: difere do '2022-01-17 19:58' por ter trocado 11 textos em Portugues para Ingles (e uma indentacao linha 266)
+upgrade_2022_01_17_19_58.php:

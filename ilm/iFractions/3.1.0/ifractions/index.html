@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<!-- LInE - Free Education, Private Data - http://www.usp.br/line -->
+
+<html lang="pt-br">
+
+<head>
+
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Educational game for teaching fractions" />
+  <meta name="keywords" content="ifractions, fraction, game, private data" />
+  <link rel="shortcut icon" href="./assets/img/scene/flag.png">
+  <link rel="stylesheet" href="./style/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="./style/IFractions.css">
+  <title>iFractions/iFra&ccedil;&otilde;es</title>
+
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="panel panel-primary">
+
+      <div class="panel-heading">iFractions game :: by LInE</div>
+
+      <div class="panel-body">
+
+        <canvas class="ifr-canvas"></canvas>
+
+        <div class="ifr-input__container">
+          <input class="ifr-input" type="text" value="" size="13" maxlength="36">
+        </div>
+
+        <div class="ifr-modal">
+          <div class="ifr-modal__content">
+            <span class="ifr-modal__closeButton">&times;</span>
+            <div class='ifr-modal__infobox'></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Load all js files -->
+    <script src="./js/menus/preMenu_boot.js"></script>
+    <script src="./js/menus/preMenu_lang.js"></script>
+    <script src="./js/menus/preMenu_name.js"></script>
+    <script src="./js/menus/menu_main.js"></script>
+    <script src="./js/menus/menu_custom.js"></script>
+    <script src="./js/screens/map.js"></script>
+    <script src="./js/screens/end.js"></script>
+    <script src="./js/games/circleOne.js"></script>
+    <script src="./js/games/squareOne.js"></script>
+    <script src="./js/games/squareTwo.js"></script>
+    <!-- <script src="./js/games/scaleOne.js"></script> -->
+    <script src="./js/moodle/studentReport.js"></script> <!-- FOR MOODLE -->
+    <script src="./js/moodle/integrationFunctions.js"></script> <!-- FOR MOODLE -->
+    <script src="./js/gameMechanics.js"></script>
+    <script src="./js/globals/globals_control.js"></script>
+    <script src="./js/globals/globals_tokens.js"></script>
+    <script src="./js/globals/globals_functions.js"></script>
+    <script src="./js/globals/globals_debug.js"></script>
+
+    <script>
+
+      const defaultWidth = 1920; // Default width for the Canvas
+      const defaultHeight = 1080; // Default height for the Canvas
+
+      const context = document.querySelector('.ifr-canvas').getContext("2d");
+      context.canvas.width = defaultWidth;
+      context.canvas.height = defaultHeight;
+
+      // CREATING GAME STATES
+      game.state.add('boot', bootState);
+      game.state.add('lang', langState);
+      game.state.add('loadLang', loadLangState);
+      game.state.add('name', nameState);
+
+      game.state.add('menu', menuState);
+      game.state.add('customMenu', customMenuState);
+
+      game.state.add('map', mapState);
+      game.state.add('end', endState);
+
+      game.state.add('squareOne', squareOne);
+      game.state.add('circleOne', circleOne);
+      game.state.add('squareTwo', squareTwo);
+      // game.state.add('scaleOne', scaleOne);
+
+      game.state.add('studentReport', studentReport); // FOR MOODLE
+
+      // CALLING FIRST GAME STATE
+      game.state.start('boot');
+    </script>
+
+  <!-- Information -->
+
+  <!--
+  <div class="panel panel-info">
+   <div class="panel-heading">iFractions Project information</div>
+   <div class="panel-body">
+    Free software to promote learning with private data! By
+    <a href="https://www.usp.br/line" class="ref2"
+       title="Web page LInE" target="_blank">Laboratory of Informatics in Education</a>.
+    <center>
+     <table>
+      <tr><td><img src="img/mini_games_1.png" width="300" title="several mini-games" /></td></tr>
+      <tr><td><strong>Mini-games</strong> to introduce fractions</td></tr>
+      <tr><td><strong>Free software, private data:</strong>
+              <a href="ifractions_2023_09_07.tgz" title="download to use in your computer, school..." target="_blank">download</a></td></tr>
+     </table>
+    </center>
+   </div>
+  </div>  
+
+  <div class="panel panel-info">
+    <div class="panel-heading">Sobre o iFra&ccedil;&otilde;es</div>
+    <div class="panel-body">
+      O <b>iFra&ccedil;&otilde;es</b> &eacute; um "software" livre desenvolvido pelo
+      <a href="http://www.usp.br/line" title="Pagina do Laboratorio de Informatica na Educacao (LInE)" target="_blank">LInE</a>.
+      <br/>
+      <i>Software</i> livre para promover o aprendizado, mantendo os dados de modo privativo!
+      -->
+      <!--
+      Para mais informa&ccedil;&otilde;es sobre o <i>iFra&ccedil;&otilde;es</i> 
+      <a href="sobre/" title="Mais informacoes sobre o iFracoes" target="_blank">clique aqui</a>.
+      -->
+      <!--
+    </div>
+  </div>-->
+
+    <div class="panel panel-info">
+      <div class="panel-heading"><table width="100%"><tr><td align="left">
+	🇺🇸&nbsp;&nbsp;More information about the iFractions Project</td>
+        <td align="right"><img src="img/mini_games_1.png" width="100" title="Examples of iFractions mini-games" /></td></tr>
+      </table></div>
+      <div class="panel-body">
+        <ul>
+          <li>Free software to promote learning with private data!</li>
+          <li>Developed by
+            <a href="https://www.usp.br/line" class="ref2" title="LInE's web page" target="_blank">Laboratory of
+              Informatics in Education</a>.
+          </li>
+          <li>For more information about mini-games to introduce fractions see the <a href="about/"
+              title="see documentation" target="_blank">iFractions documentation</a>.
+          </li>
+          <li>If you are a developer interested in colaborating with the project, see the <a
+              href="about/paginas/documentacao.html#sou-dev" title="see documentation to developers" target="_blank">Development
+              section</a> of the documentation.
+          </li>
+        </ul>
+        <!--        <a href="ifractions_www.tgz" title="download to use in your computer, school..." target="_blank">download</a> -->
+      </div>
+    </div>
+
+    <div class="panel panel-info">
+
+      <div class="panel-heading"><table width="100%"><tr><td align="left">
+	🇧🇷&nbsp;&nbsp;Mais informações sobre o Projeto iFrações</td>
+        <td align="right"><img src="img/mini_games_1.png" width="100" title="Exemplos de mini-jogos do iFrações" /></td></tr>
+      </table></div>
+      <div class="panel-body">
+        <ul>
+          <li><em>Software</em> livre para promover aprendizado mantendo dados privativo!</li>
+          <li>Desenvolvido pelo
+            <a href="https://www.usp.br/line" class="ref2" title="Página web do LInE" target="_blank">Laboratorio de
+              Informática na Educação</a>.
+          </li>
+          <li>Para mais informa&ccedil;&otilde;es sobre mini-jogos para introduzir fra&ccedil;&otilde;es veja a 
+            <a href="about/" title="Veja a documenta&ccedil;&atilde;o sobre o iFra&ccedil;&otilde;es"
+            target="_blank">documenta&ccedil;&atilde;o do iFra&ccedil;&otilde;es</a>.</li>
+          <li>Se você é um programador interessado em colaborar com o projeto,
+	  veja a
+	  <a href="about/paginas/documentacao.html#sou-dev" title="Veja a documenta&ccedil;&atilde;o iFra&ccedil;&otilde;es para desenvolvedores"
+             target="_blank">
+	     sess&atilde;o de desenvolvimento</a> da documenta&ccedil;&atilde;o.
+          </li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  
+</body>
+
+</html>

@@ -1,0 +1,49 @@
+<!--
+
+iHanoi
+http://www.usp.br/line
+
+Uso: localhost/ihanoi/index.html?n=3&lang=pt
+@TODO ainda nao implementado multi-lingua
+
+Leo^nidas de Oliveira Brandao
+v0: 2020/07/28
+
+-->
+
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <title>iHanoi - Problema das Torres de Hanoi</title>
+  <link rel="stylesheet" href="css/ihanoi_style.css" />
+ </head>
+
+<body onload="start_iLM(); desenhaTudo();" style="text-align: justify; width: 1140px; height: 540px;">
+
+<center>
+
+<!-- Importante usar estilo para NAO apresentar: style="display:none; -->
+<img id="fundo" style="display:none;" src="img/img_fundo_hanoi.png" />
+<img id="haste0" style="display:none;" src="img/hasteA.png" />
+<img id="haste1" style="display:none;" src="img/hasteB.png" />
+<img id="haste2" style="display:none;" src="img/hasteC.png" />
+<img id="disco0" style="display:none;" src="img/disk1.png" />
+<img id="disco1" style="display:none;" src="img/disk2.png" />
+<img id="disco2" style="display:none;" src="img/disk3.png" />
+<img id="disco3" style="display:none;" src="img/disk4.png" />
+<img id="disco4" style="display:none;" src="img/disk5.png" />
+<img id="disco5" style="display:none;" src="img/disk6.png" />
+
+<!-- Botoes auxiliares para iHanoir: redefinir, rever, 1 disco, ... -->
+
+<div id="botoes" width="11000" height="530" style="position: absolute; z-index: 1"></div>
+
+<!-- Carregar codigos JavaScript -->
+<script src="js/ihanoi.js"></script><!-- Carregar codigo do iMA iHanoi - JavaScript -->
+<script src="js/integration-functions.js"></script><!-- integrador do iMA como o iTarefa/Moodle - JavaScript -->
+
+</center>
+
+</body>
+</html>
