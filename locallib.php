@@ -168,6 +168,7 @@ class iassign {
   var $write_solution;
   var $view_iassign;
   var $coursecontext, $return; // if missing, PHP8 launch warning bellow
+  var $group_collab = null;    // \mod_iassign\group_collab (see group_collab())
   // Attention with PHP8: Deprecated: Creation of dynamic property iassign::X is deprecated in /var/www/html/saw/mod/iassign/locallib.php on line Y
 
   // 3.1 update PHP 7.0 compatibility for all moodle versions
@@ -787,12 +788,17 @@ class iassign {
     $item = optional_param('item', NULL, PARAM_TEXT);
     $exercise = optional_param('exercise', NULL, PARAM_TEXT);
 
+    // 'student' / 'exercise' also clear the saved states ("Save current state" drafts / version history): otherwise, after
+    // clearing the submissions (e.g. between a pilot and the real study), students would reopen the activity on old drafts.
     if ($type == 'individual') {
       $DB->delete_records('iassign_allsubmissions', array('id' => $item));
     } elseif ($type == 'student') {
       $DB->delete_records('iassign_allsubmissions', array('userid' => $item, 'iassign_statementid' => $exercise));
+      $DB->delete_records('iassign_submission_state', array('userid' => $item, 'iassign_statementid' => $exercise));
     } elseif ($type == 'exercise') {
       $DB->delete_records('iassign_allsubmissions', array('iassign_statementid' => $item));
+      $DB->delete_records('iassign_submission_state', array('iassign_statementid' => $item));
+      $DB->delete_records('iassign_group_presence', array('iassign_statementid' => $item));
       }
     }
 
@@ -1384,37 +1390,7 @@ class iassign {
           if (submissions[j].exerciseid == selected_exercises[actual_exercise]) {
             final_url = submissions[j].ilm;
             break;
-            }
-          }
-        final_url += "?iLM_PARAM_AssignmentURL=true&iLM_PARAM_Assignment=" + encodeURIComponent(student_answer) + "&iLM_PARAM_TeacherAutoEval=true";
-        actual_answer_url = student_answer; // to provide the current student answer (to "iassing_integration_functios.js" of iLM)
-
-        window.frames["ifrm"].location=final_url;
-        }
-      } // function run_individual_evaluation()
-
-    var break_student = -1;
-    var break_exercise = -1;
-
-    function verifyBreak () {
-      if (actual_student == break_student && actual_exercise == break_exercise) {
-        postResultAutoEval(-6);
-        break_student = -1;
-        break_exercise = -1;
-        return;
-      } else {
-        break_student = actual_student;
-        break_exercise = actual_exercise;
-        }
-      }
-
-    // This function is called by the iLM to get the student s answer (to compare with re-evaluation)
-    function getStudentAnswerURL () {
-      return actual_answer_url; // to provide the current student answer (to "iassing_integration_functios.js" of iLM)
-      }
-
-    // This function is called by the iLM!!!
-    function getAutoEvalOriginalData () {
+silva1OriginalData () {
       return original_propositions[actual_exercise];
       }
 
@@ -2359,40 +2335,57 @@ class iassign {
   //  It just appends a row to {iassign_submission_state}, so the student can close the activity and resume later from this point,
   //  and (as a side effect, useful for the thesis) keeps a timestamped history of how the student's solution evolved over time.
   //  Group activities ({iassign}.group_submission==1): the saved state is replicated to every member of the student's
-  //  group (same pattern used by iassign_sync_group_submission() for the final submission), so that when a teammate
-  //  opens the activity, they resume from the most recent state saved by ANY member of the team - not just their own.
-  //  Always called through AJAX (see 'iLM_ajax' in html5.php); replies 'OK'/'ERROR' as plain text and dies.
+  //  group, so that when a teammate opens the activity, they resume from the most recent state saved by ANY member.
+  //  The logic is in classes/group_collab.php!save_state(). Always called through AJAX; replies JSON and dies:
+  //    {status:'OK', time, latest}       - saved (latest = who/when of the state just saved)
+  //    {status:'CONFLICT', latest}       - group activity: a teammate saved a newer state after the one this page loaded
+  //                                        ('base_time'), so nothing was written; resend with 'force=1' to overwrite it
+  //    {status:'ERROR', error}
   function save_state () {
-    global $DB;
-
     $content = optional_param('iLM_PARAM_ArchiveContent', NULL, PARAM_RAW); // same param name/format used by get_answer()
+    $base_time = optional_param('base_time', -1, PARAM_INT); // timecreated of the state this page is working over (-1: do not check)
+    $force = optional_param('force', 0, PARAM_INT);          // 1: overwrite even if a teammate saved a newer state
 
-    if ($content === NULL || $content === '' || $content == -1) {
-      print 'ERROR';
-      die();
-      }
+    if (!confirm_sesskey())
+      $this->iassign_json_reply(array('status' => 'ERROR', 'error' => 'sesskey'));
 
-    $iassign_statementid = $this->activity->get_activity()->id;
-    $timenow = time();
-    $ok = true;
+    if ($content === NULL || $content === '' || $content == -1)
+      $this->iassign_json_reply(array('status' => 'ERROR', 'error' => 'empty'));
 
-    // iassign_group_members(.) returns array($this->userid_iassign) alone when group_submission is off
-    // or the student has no group, so this loop is a no-op (single insert) in the non-group case.
-    foreach ($this->iassign_group_members($this->userid_iassign) as $memberid) {
-      $newentry = new stdClass();
-      $newentry->iassign_statementid = $iassign_statementid;
-      $newentry->userid = $memberid;
-      $newentry->timecreated = $timenow;
-      $newentry->answer = $content;
+    $statement = $this->iassign_current_statement();
+    if (!$statement)
+      $this->iassign_json_reply(array('status' => 'ERROR', 'error' => 'activity'));
 
-      if (!$DB->insert_record("iassign_submission_state", $newentry))
-        $ok = false;
-      }
-
-    print $ok ? 'OK' : 'ERROR';
-
-    die();
+    $this->iassign_json_reply($this->group_collab()->save_state($statement->id, $this->userid_iassign, $content, $base_time, (bool) $force));
     } // function save_state()
+
+
+  /// Group collaboration helper (classes/group_collab.php) for this iAssign instance.
+  function group_collab () {
+    if (empty($this->group_collab))
+      $this->group_collab = new \mod_iassign\group_collab($this->iassign, $this->cm, $this->course->id);
+    return $this->group_collab;
+    }
+
+
+  /// The activity ({iassign_statement}) of this request, only if it belongs to this iAssign instance.
+  function iassign_current_statement () {
+    $statement = $this->activity->get_activity();
+    if (!$statement || empty($statement->id) || $statement->iassignid != $this->iassign->id)
+      return false;
+    return $statement;
+    }
+
+
+  /// Sends $data as JSON (AJAX endpoints) and stops.
+  function iassign_json_reply ($data) {
+    while (ob_get_level() > 0) // discard anything printed before (warnings, debug, ...) that would break the JSON
+      ob_end_clean();
+    if (!headers_sent())
+      header('Content-Type: application/json; charset=utf-8');
+    print json_encode($data);
+    die();
+    }
 
 
   /// Export in file the answer of student.
@@ -3118,31 +3111,409 @@ class iassign {
   /// Group submission support (see version.php: "one submission shared by all members of the student's group").
   //  Returns the list of userids that must share the same submission as $userid in this iAssign instance.
   //  When group submission is disabled, or the student belongs to no group, returns array($userid).
+  //  The logic is in classes/group_collab.php (also used by the AJAX endpoint group_ajax.php).
   function iassign_group_members ($userid) {
-
-    if (empty($this->iassign->group_submission))
-      return array($userid);
-
-    $groupingid = (isset($this->cm->groupingid) && $this->cm->groupingid) ? $this->cm->groupingid : 0;
-    $usergroups = groups_get_user_groups($this->course->id, $userid);
-    if ($groupingid) // activity restricted to a grouping: only groups of that grouping count
-      $groupids = !empty($usergroups[$groupingid]) ? $usergroups[$groupingid] : array();
-    else
-      $groupids = isset($usergroups[0]) ? $usergroups[0] : array();
-
-    if (empty($groupids))
-      return array($userid);
-
-    $members = array();
-    foreach ($groupids as $groupid)
-      foreach (groups_get_members($groupid, 'u.id') as $member)
-        $members[$member->id] = (int) $member->id;
-
-    if (empty($members))
-      return array($userid);
-
-    return array_values($members);
+    return $this->group_collab()->member_ids($userid);
     } // function iassign_group_members($userid)
+
+
+  /// Group / versions panel, printed above the iLM:
+  //  - group activity (student with teammates): members with presence (who has the activity open now), who saved the
+  //    most recent state and when, last submission, "Sync automatically"; polls group_ajax.php (every few seconds while
+  //    a teammate is online) and warns/reloads when a teammate saves a newer state; cooperates with
+  //    html5.php!jsSaveState() ('base_time' / 'CONFLICT')
+  //  - any activity with saved states: "Version history" - list of saved states (who/when) with "Restore"
+  //  @param $iassign_statement the activity being shown
+  //  @param $base_time timecreated of the content loaded in the iLM (0 = teacher's template / nothing saved)
+  function iassign_group_panel ($iassign_statement, $base_time) {
+    global $CFG, $USER;
+
+    if (isguestuser() || $this->userid_iassign != $USER->id)
+      return '';
+
+    $collab = $this->group_collab();
+    $is_group = count($collab->member_ids($USER->id)) > 1;
+    if (!$is_group && !$collab->latest_state($iassign_statement->id, $USER->id))
+      return ''; // alone and nothing saved yet: nothing to show
+
+    $data = null;
+    if ($is_group) {
+      $collab->heartbeat($iassign_statement->id, $USER->id); // online right away for the teammates
+      $data = $collab->status_data($iassign_statement->id, $USER->id);
+      }
+
+    $strings = array();
+    foreach (array('group_panel_you', 'group_panel_online', 'group_panel_offline', 'group_panel_last_saved',
+                   'group_panel_never_saved', 'group_panel_last_submission', 'group_panel_someone', 'group_panel_you_author',
+                   'group_newer_version', 'group_load_newer', 'group_keep_mine', 'group_conflict', 'group_overwrite',
+                   'group_confirm_load', 'group_syncing', 'group_connection_lost', 'group_history', 'group_history_hide',
+                   'group_history_empty', 'group_history_current', 'group_restore', 'group_restore_confirm',
+                   'group_restore_unsaved', 'group_restore_unloadable', 'group_restoring', 'group_error') as $key)
+      $strings[$key] = get_string($key, 'iassign');
+
+    $config = array(
+      'group'     => $is_group,
+      'ajaxUrl'   => $CFG->wwwroot . '/mod/iassign/group_ajax.php?cmid=' . $this->cm->id . '&statementid=' . $iassign_statement->id .
+                     '&sesskey=' . sesskey(),
+      'reloadUrl' => $CFG->wwwroot . '/mod/iassign/view.php?id=' . $this->cm->id . '&iassign_current=' . $iassign_statement->id .
+                     '&userid_iassign=' . $USER->id . '&action=view',
+      'baseTime'  => (int) $base_time,
+      'pollFast'  => \mod_iassign\group_collab::POLL_FAST_MS,
+      'pollSlow'  => \mod_iassign\group_collab::POLL_SLOW_MS,
+      'data'      => $data,
+      'str'       => $strings
+      );
+
+    if ($is_group) {
+      $title = '<i class="fa fa-users" aria-hidden="true"></i> <strong>' . get_string('group_panel_title', 'iassign') . '</strong>' .
+        ($data['groups'] ? ' <span class="text-muted small">(' . s(implode(', ', $data['groups'])) . ')</span>' : '');
+      $autosync = '
+        <div class="form-check form-switch small mb-0" title="' . s(get_string('group_autosync_help', 'iassign')) . '">
+          <input class="form-check-input" type="checkbox" id="iassign-group-autosync">
+          <label class="form-check-label" for="iassign-group-autosync">' . get_string('group_autosync', 'iassign') . '</label>
+        </div>';
+      $body = '
+    <ul id="iassign-group-members" class="list-unstyled d-flex flex-wrap my-2" style="gap: .5rem;"></ul>
+    <div id="iassign-group-lastsaved" class="small"></div>
+    <div id="iassign-group-lastsubmission" class="small text-muted"></div>
+    <div class="small text-muted mt-1">' . get_string('group_panel_help', 'iassign') . '</div>';
+      }
+    else {
+      $title = '<i class="fa fa-history" aria-hidden="true"></i> <strong>' . get_string('group_panel_title_solo', 'iassign') . '</strong>';
+      $autosync = '';
+      $body = '';
+      }
+
+    $html = '
+<style>
+  .iassign-group-panel .iassign-gm { display: inline-flex; align-items: center; gap: .4rem; padding: .2rem .6rem .2rem .2rem;
+    border: 1px solid var(--bs-border-color, #dee2e6); border-radius: 2rem; font-size: .875rem; }
+  .iassign-group-panel .iassign-gm-avatar { position: relative; width: 1.9rem; height: 1.9rem; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 600;
+    background: var(--bs-secondary-bg, #e9ecef); color: var(--bs-body-color, #212529); }
+  .iassign-group-panel .iassign-gm-dot { position: absolute; right: -1px; bottom: -1px; width: .65rem; height: .65rem;
+    border-radius: 50%; border: 2px solid var(--bs-body-bg, #fff); background: #adb5bd; }
+  .iassign-group-panel .iassign-gm.is-online .iassign-gm-dot { background: #2e7d32; }
+  .iassign-group-panel .iassign-gm.is-me { font-weight: 600; }
+  .iassign-group-panel .iassign-group-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+  .iassign-group-panel .iassign-history { max-height: 16rem; overflow-y: auto; }
+  .iassign-group-panel .iassign-history .list-group-item { display: flex; flex-wrap: wrap; align-items: center;
+    justify-content: space-between; gap: .5rem; padding: .4rem .75rem; font-size: .875rem; }
+</style>
+<div id="iassign-group-panel" class="card mb-3 iassign-group-panel" aria-live="polite">
+  <div class="card-body p-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between" style="gap: .5rem;">
+      <div>' . $title . '</div>
+      <div class="d-flex flex-wrap align-items-center" style="gap: 1rem;">' . $autosync . '
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="iassign-history-toggle" aria-expanded="false"
+          aria-controls="iassign-history"><i class="fa fa-history" aria-hidden="true"></i> <span>' .
+          get_string('group_history', 'iassign') . '</span></button>
+      </div>
+    </div>' . $body . '
+    <div id="iassign-history" class="iassign-history mt-2" hidden>
+      <ul class="list-group" id="iassign-history-list"></ul>
+    </div>
+    <div id="iassign-group-alert" class="alert mt-2 mb-0" role="alert" hidden></div>
+  </div>
+</div>
+<script type="text/javascript">
+window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ';
+</script>
+<script type="text/javascript">' . self::iassign_group_panel_js() . '</script>
+';
+    return $html;
+    } // function iassign_group_panel($iassign_statement, $base_time)
+
+
+  /// JavaScript of the group / versions panel (see iassign_group_panel()). Reads window.iassignGroupConfig and exposes
+  //  window.iassignGroup (baseTime, onSaved(), onConflict()) used by html5.php!jsSaveState().
+  static function iassign_group_panel_js () {
+    return <<<'JS'
+(function () {
+  var cfg = window.iassignGroupConfig;
+  if (!cfg) return;
+  var S = cfg.str;
+  var G = window.iassignGroup = { baseTime: cfg.baseTime };
+  var dismissedTime = 0;   // newest teammate version the student chose to ignore ("Keep mine")
+  var snapshot = null;     // iLM content right after loading / last save: used to know if there are unsaved changes
+  var timer = null;
+  var othersOnline = false;
+  var busy = false;        // a restore/reload is in progress
+
+  function $(id) { return document.getElementById(id); }
+  var el = {
+    members: $('iassign-group-members'),
+    lastSaved: $('iassign-group-lastsaved'),
+    lastSubmission: $('iassign-group-lastsubmission'),
+    alert: $('iassign-group-alert'),
+    autosync: $('iassign-group-autosync'),
+    historyToggle: $('iassign-history-toggle'),
+    history: $('iassign-history'),
+    historyList: $('iassign-history-list')
+  };
+
+  function fill(str, a) {
+    return str.split('{$a->author}').join(a.author || '').split('{$a->time}').join(a.time || '').split('{$a}').join(a.value || '');
+  }
+  function authorOf(info) {
+    if (info.mine) return S.group_panel_you_author;
+    return info.authorname || S.group_panel_someone;
+  }
+
+  // ---- server ----
+  function api(action, params, post) {
+    var url = cfg.ajaxUrl + '&action=' + encodeURIComponent(action);
+    var opts = { credentials: 'same-origin', cache: 'no-store' };
+    if (post) {
+      var body = new FormData();
+      Object.keys(params || {}).forEach(function (k) { body.append(k, params[k]); });
+      opts.method = 'POST';
+      opts.body = body;
+    } else {
+      Object.keys(params || {}).forEach(function (k) { url += '&' + k + '=' + encodeURIComponent(params[k]); });
+    }
+    return fetch(url, opts).then(function (r) { return r.text(); }).then(function (t) {
+      var data = JSON.parse(t.substring(t.indexOf('{')));
+      if (data.status !== 'OK') throw new Error(data.error || data.status || 'error');
+      return data;
+    });
+  }
+
+  // ---- iLM content ----
+  function getAnswer() {
+    try {
+      var f = window.frames[0];
+      if (f && typeof f.getAnswer === 'function') {
+        var a = f.getAnswer();
+        return (a === null || a === undefined || a === -1) ? '' : String(a);
+      }
+    } catch (e) {}
+    return null; // iLM not ready / does not expose getAnswer()
+  }
+  function takeSnapshot() { snapshot = getAnswer(); }
+  function hasUnsavedChanges() {
+    var cur = getAnswer();
+    if (cur === null || snapshot === null) return true; // unknown: be safe, never discard work silently
+    return cur !== snapshot;
+  }
+  window.addEventListener('load', function () { setTimeout(takeSnapshot, 3000); }); // iLMs finish loading asynchronously
+
+  function reloadNewest() {
+    busy = true;
+    window.location.href = cfg.reloadUrl;
+  }
+
+  // ---- alerts ----
+  function hideAlert() { el.alert.hidden = true; el.alert.textContent = ''; }
+  function showAlert(kind, text, buttons) {
+    el.alert.className = 'alert alert-' + kind + ' mt-2 mb-0';
+    el.alert.setAttribute('data-kind', kind);
+    el.alert.textContent = '';
+    var p = document.createElement('div');
+    p.textContent = text;
+    el.alert.appendChild(p);
+    if (buttons && buttons.length) {
+      var box = document.createElement('div');
+      box.className = 'iassign-group-actions';
+      buttons.forEach(function (b) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm ' + b.cls;
+        btn.textContent = b.label;
+        btn.addEventListener('click', b.onClick);
+        box.appendChild(btn);
+      });
+      el.alert.appendChild(box);
+    }
+    el.alert.hidden = false;
+  }
+
+  // ---- version history ----
+  function renderHistory(versions) {
+    el.historyList.textContent = '';
+    if (!versions.length) {
+      var empty = document.createElement('li');
+      empty.className = 'list-group-item text-muted';
+      empty.textContent = S.group_history_empty;
+      el.historyList.appendChild(empty);
+      return;
+    }
+    versions.forEach(function (v, i) {
+      var li = document.createElement('li');
+      li.className = 'list-group-item';
+      var label = document.createElement('span');
+      var who = document.createElement('strong');
+      who.textContent = authorOf(v);
+      label.appendChild(who);
+      label.appendChild(document.createTextNode(' · ' + v.timestr));
+      li.appendChild(label);
+      if (i === 0) {
+        var badge = document.createElement('span');
+        badge.className = 'badge bg-secondary badge-secondary';
+        badge.textContent = S.group_history_current;
+        li.appendChild(badge);
+      } else {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline-primary';
+        btn.textContent = S.group_restore;
+        btn.addEventListener('click', function () { restoreVersion(v); });
+        li.appendChild(btn);
+      }
+      el.historyList.appendChild(li);
+    });
+  }
+  function loadHistory() {
+    return api('history').then(function (d) { renderHistory(d.versions); })
+      .catch(function () { showAlert('danger', S.group_error); });
+  }
+  function setHistoryOpen(open) {
+    el.history.hidden = !open;
+    el.historyToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    el.historyToggle.querySelector('span').textContent = open ? S.group_history_hide : S.group_history;
+    if (open) loadHistory();
+  }
+  el.historyToggle.addEventListener('click', function () { setHistoryOpen(el.history.hidden); });
+
+  function restoreVersion(v) {
+    var question = fill(S.group_restore_confirm, { author: authorOf(v), time: v.timestr });
+    if (hasUnsavedChanges()) question += '\n\n' + S.group_restore_unsaved;
+    if (!window.confirm(question)) return;
+    api('version', { stateid: v.id }).then(function (d) {
+      // Never restore content the iLM can not reopen (see html5.php!iassignAnswerUnloadable())
+      if (typeof window.iassignAnswerUnloadable === 'function' && window.iassignAnswerUnloadable(d.content)) {
+        showAlert('warning', S.group_restore_unloadable);
+        return;
+      }
+      showAlert('info', S.group_restoring);
+      return api('restore', { stateid: v.id }, true).then(reloadNewest);
+    }).catch(function () { showAlert('danger', S.group_error); });
+  }
+
+  // ---- hooks used by html5.php!jsSaveState() ----
+  G.onSaved = function (resp) {
+    G.baseTime = resp.time;
+    takeSnapshot();
+    hideAlert();
+    if (resp.latest && el.lastSaved) renderLatest(resp.latest);
+    if (!el.history.hidden) loadHistory();
+  };
+  G.onConflict = function (resp) {
+    var latest = resp.latest;
+    showAlert('danger', fill(S.group_conflict, { author: authorOf(latest), time: latest.timestr }), [
+      { label: S.group_overwrite, cls: 'btn-danger', onClick: function () {
+          G.baseTime = latest.time;
+          hideAlert();
+          if (typeof window.jsSaveState === 'function') window.jsSaveState();
+        } },
+      { label: S.group_load_newer, cls: 'btn-outline-secondary', onClick: function () {
+          if (!hasUnsavedChanges() || window.confirm(S.group_confirm_load)) reloadNewest();
+        } }
+    ]);
+  };
+
+  if (!cfg.group) return; // alone: only the version history
+
+  // ==== group activity: members, presence, newer versions, polling ====
+
+  // "Sync automatically": per-browser preference (default on)
+  var autosync = true;
+  try { autosync = window.localStorage.getItem('iassign_group_autosync') !== '0'; } catch (e) {}
+  el.autosync.checked = autosync;
+  el.autosync.addEventListener('change', function () {
+    try { window.localStorage.setItem('iassign_group_autosync', el.autosync.checked ? '1' : '0'); } catch (e) {}
+  });
+
+  function renderMembers(members) {
+    el.members.textContent = '';
+    members.forEach(function (m) {
+      var li = document.createElement('li');
+      li.className = 'iassign-gm' + (m.online ? ' is-online' : '') + (m.me ? ' is-me' : '');
+      li.title = m.name + ' - ' + (m.online ? S.group_panel_online : S.group_panel_offline);
+      var av = document.createElement('span');
+      av.className = 'iassign-gm-avatar';
+      av.setAttribute('aria-hidden', 'true');
+      av.textContent = m.initials;
+      var dot = document.createElement('span');
+      dot.className = 'iassign-gm-dot';
+      av.appendChild(dot);
+      var name = document.createElement('span');
+      name.textContent = m.name + (m.me ? ' ' + S.group_panel_you : '');
+      var sr = document.createElement('span');
+      sr.className = 'sr-only visually-hidden';
+      sr.textContent = ' (' + (m.online ? S.group_panel_online : S.group_panel_offline) + ')';
+      li.appendChild(av); li.appendChild(name); li.appendChild(sr);
+      el.members.appendChild(li);
+    });
+  }
+  function renderLatest(latest) {
+    el.lastSaved.textContent = latest
+      ? fill(S.group_panel_last_saved, { author: authorOf(latest), time: latest.timestr })
+      : S.group_panel_never_saved;
+  }
+  function render(data) {
+    if (data.members) {
+      renderMembers(data.members);
+      othersOnline = data.members.some(function (m) { return !m.me && m.online; });
+    }
+    renderLatest(data.latest);
+    el.lastSubmission.textContent = data.submission ? fill(S.group_panel_last_submission, { value: data.submission.timestr }) : '';
+  }
+
+  // A teammate saved a state newer than the one this page is working over
+  function handleNewer(latest) {
+    if (busy || !latest || latest.mine || latest.time <= G.baseTime || latest.time <= dismissedTime) return;
+    var a = { author: authorOf(latest), time: latest.timestr };
+    if (!el.history.hidden) loadHistory();
+    if (el.autosync.checked && !hasUnsavedChanges()) {
+      showAlert('info', fill(S.group_syncing, { value: a.author }));
+      busy = true;
+      setTimeout(reloadNewest, 600);
+      return;
+    }
+    showAlert('warning', fill(S.group_newer_version, a), [
+      { label: S.group_load_newer, cls: 'btn-primary', onClick: function () {
+          if (!hasUnsavedChanges() || window.confirm(S.group_confirm_load)) reloadNewest();
+        } },
+      { label: S.group_keep_mine, cls: 'btn-outline-secondary', onClick: function () {
+          dismissedTime = latest.time;
+          G.baseTime = latest.time; // the student knowingly works over it: next save may replace it
+          hideAlert();
+        } }
+    ]);
+  }
+
+  // Polling: fast while a teammate is online, slow when alone, paused in background tabs, backing off on errors
+  var failures = 0;
+  function schedule(ms) { clearTimeout(timer); timer = setTimeout(poll, ms); }
+  function nextDelay() {
+    if (failures) return Math.min(cfg.pollSlow * failures, 60000);
+    return othersOnline ? cfg.pollFast : cfg.pollSlow;
+  }
+  function poll() {
+    if (busy) return;
+    if (document.hidden) return; // resumed by 'visibilitychange'
+    api('status')
+      .then(function (data) {
+        if (!el.alert.hidden && el.alert.getAttribute('data-kind') === 'secondary') hideAlert(); // connection is back
+        failures = 0;
+        render(data);
+        handleNewer(data.latest);
+      })
+      .catch(function () {
+        failures++;
+        if (failures >= 2 && el.alert.hidden) showAlert('secondary', S.group_connection_lost);
+      })
+      .then(function () { if (!busy) schedule(nextDelay()); });
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && !busy) schedule(300); });
+
+  render(cfg.data);
+  handleNewer(cfg.data.latest);
+  schedule(othersOnline ? cfg.pollFast : cfg.pollSlow);
+})();
+JS;
+    }
 
 
   /// Group submission support.
@@ -3894,9 +4265,18 @@ class iassign {
           if ($this->action != 'repeat') {
             $latest_draft = $DB->get_records('iassign_submission_state',
               array('iassign_statementid' => $iassign_statement_activity_item->id, 'userid' => $this->userid_iassign),
-              'timecreated DESC', '*', 0, 1);
+              'timecreated DESC, id DESC', '*', 0, 1); // id: tie-break for states saved in the same second
             $latest_draft = $latest_draft ? reset($latest_draft) : false;
             }
+
+          // Group collaboration panel: 'base_time' = moment of the content that will be loaded in the iLM, so the panel/save
+          // can detect a newer state saved by a teammate ('repeat' starts from scratch: any older state is irrelevant).
+          if ($this->action == 'repeat')
+            $group_base_time = time();
+          else
+            $group_base_time = max($latest_draft ? $latest_draft->timecreated : 0,
+              ($iassign_submission && $iassign_submission->answer != '0') ? $iassign_submission->timemodified : 0);
+          $output .= $this->iassign_group_panel($iassign_statement_activity_item, $group_base_time);
 
           // Presents the iLM
           // Prepare tags to present the iLM: it use 'ilm_handlers/<{iassign_statement}.type>.php' typec::show_activity_in_ilm(.)
@@ -6071,6 +6451,9 @@ class activity {
       $fs->delete_area_files($iassign->context->id, 'mod_iassign', 'exercise', $this->activity->id);
 
       $this->delete_calendar($this->activity->id);
+      // Drafts / version history and group presence of this activity (they would be orphans otherwise)
+      $DB->delete_records('iassign_submission_state', array('iassign_statementid' => $this->activity->id));
+      $DB->delete_records('iassign_group_presence', array('iassign_statementid' => $this->activity->id));
       $delete_iassign_current = $DB->delete_records('iassign_statement', array('id' => $this->activity->id));
       iassign::update_grade_iassign($this->activity->iassignid);
 

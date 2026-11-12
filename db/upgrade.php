@@ -117,6 +117,7 @@ function xmldb_iassign_upgrade ($oldversion) {
   // - 2026082900: {iassign}.group_submission
   // - 2026091800: register iQuestion "1.0.0" in {iassign_ilm}
   // - 2026092800: create {iassign_submission_state} - "save current state" button (asynchronous activity)
+  // - 2026111200: {iassign_submission_state}.authorid + create {iassign_group_presence} - group panel / conflict detection / live sync
   if ($oldversion < 2023041000) { // < 2020070613
     $msgD .= "+ " . $oldversion . " < 2020070613: " . "\n" ; //DEBUG to ./mod/iassign/ilm_debug/upgrade_AAAA_MM_DD_hh_mm_ss.txt
     $msgD .= "  * {iassign_allsubmissions}.previous_grade; insere iLM (iGeom 5.9.22; iHanoi 1.0.20230526;  iVProg 1.0.20230504; iFractions 3.1.0)\n"; //DEBUG
@@ -793,6 +794,35 @@ function xmldb_iassign_upgrade ($oldversion) {
 
     upgrade_mod_savepoint(true, 2026092800, 'iassign');
     } // if ($oldversion < 2026092800)
+
+  // v 3.0.16 2026/11/12 (2026111200) group collaboration screen:
+  //  - {iassign_submission_state}.authorid: who really clicked "Save" (rows are replicated to every group member)
+  //  - {iassign_group_presence}: heartbeat of who has the activity open right now
+  if ($oldversion < 2026111200) {
+    $msgD .= "+ " . $oldversion . " < 2026111200: add {iassign_submission_state}.authorid, create {iassign_group_presence}\n"; //DEBUG
+
+    $table = new xmldb_table('iassign_submission_state');
+    $field = new xmldb_field('authorid', XMLDB_TYPE_INTEGER, '10', XMLDB_UNSIGNED, XMLDB_NOTNULL, null, '0', 'answer');
+    if ($dbman->table_exists($table) && !$dbman->field_exists($table, $field)) {
+      $dbman->add_field($table, $field);
+      $msgD .= "  * {iassign_submission_state}.authorid\n"; //DEBUG
+      }
+
+    $table = new xmldb_table('iassign_group_presence');
+    $table->add_field('id', XMLDB_TYPE_INTEGER, '10', XMLDB_UNSIGNED, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+    $table->add_field('iassign_statementid', XMLDB_TYPE_INTEGER, '10', XMLDB_UNSIGNED, XMLDB_NOTNULL, null, '0');
+    $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', XMLDB_UNSIGNED, XMLDB_NOTNULL, null, '0');
+    $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', XMLDB_UNSIGNED, XMLDB_NOTNULL, null, '0');
+    $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+    $table->add_key('iassign_statementid', XMLDB_KEY_FOREIGN, ['iassign_statementid'], 'iassign_statement', ['id']);
+    $table->add_index('statementuserid', XMLDB_INDEX_UNIQUE, ['iassign_statementid', 'userid']);
+    if (!$dbman->table_exists($table)) {
+      $dbman->create_table($table);
+      $msgD .= "  * {iassign_group_presence}.{id, iassign_statementid, userid, timemodified}\n"; //DEBUG
+      }
+
+    upgrade_mod_savepoint(true, 2026111200, 'iassign');
+    } // if ($oldversion < 2026111200)
 
 
  //DEBUG to ./mod/iassign/ilm_debug/upgrade_AAAA_MM_DD_hh_mm_ss.txt

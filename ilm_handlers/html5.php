@@ -343,7 +343,31 @@ class html5 implements ilm_handle {
   var evaluationResult = '';
   var comment = '';
 
+  // iVProg: the visual editor accepts incomplete commands (e.g. an empty expression slot), but the code it generates for
+  // them cannot be loaded back ('ivprogCore.parseCode()' returns null and iVProg shows 'An error occurred while processing
+  // the activity'). Since saved states are shared by the whole group, such content would break the activity for everyone.
+  // Returns true when the iLM is iVProg and its own parser rejects the program in 'answer' (getAnswer() JSON with 'code').
+  // For any other iLM (no 'ivprogCore'), or when it can not be checked, returns false (= do not block).
+  function iassignAnswerUnloadable (answer) {
+    try {
+      var ilm = window.frames[0];
+      if (!ilm || !ilm.ivprogCore || typeof ilm.ivprogCore.parseCode !== 'function') return false;
+      var obj = (typeof answer === 'string') ? JSON.parse(answer) : answer;
+      if (!obj || typeof obj.code !== 'string') return false;
+      return ilm.ivprogCore.parseCode(obj.code) === null;
+      }
+    catch (err) {
+      return false;
+      }
+    }
+  var iassignStrIncompleteProgram = " . json_encode(get_string('ilm_incomplete_program', 'iassign'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ";
+
   function jsAnalyseAnswer () { // this function will call the iLM function 'getEvaluation()'
+    if (iassignAnswerUnloadable(window.frames[0].getAnswer())) {
+      window.flagclick = false;
+      alert(iassignStrIncompleteProgram);
+      return false;
+      }
     document.getElementById('spinner-loading').style.visibility = 'visible';
     setTimeout(function(){
       document.getElementById('spinner-loading').style.visibility = 'hidden';
@@ -391,6 +415,12 @@ class html5 implements ilm_handle {
       alert('" . get_string('activity_empty', 'iassign') . "'); // 'Activity sent without content.'
       return false; // error...
       }
+    else if (iassignAnswerUnloadable(strAnswer)) { // also when the submission comes from the iLM's own button
+      window.flagclick = false;
+      document.getElementById('spinner-loading').style.visibility = 'hidden';
+      alert(iassignStrIncompleteProgram);
+      return false;
+      }
     else if (submissionbehavior == 1) { // iLM has no submition button, use the form one
       document.formEnvio.iLM_PARAM_ArchiveContent.value = strAnswer;
       document.formEnvio.iLM_PARAM_ActivityEvaluation.value = evaluationResult;
@@ -437,18 +467,33 @@ class html5 implements ilm_handle {
       alert('" . get_string('activity_empty', 'iassign') . "');
       return false;
       }
+    if (iassignAnswerUnloadable(strAnswerSave)) { // never store a state that iVProg (and the whole group) could not reopen
+      alert(iassignStrIncompleteProgram);
+      return false;
+      }
     window.flagclicksave = true;
     document.getElementById('spinner-loading-save').style.visibility = 'visible';
     var formData = new FormData();
     formData.append('iLM_PARAM_ArchiveContent', strAnswerSave);
     formData.append('iLM_ajax', 1);
+    formData.append('sesskey', '" . sesskey() . "');
+    // Group activity: the collaboration panel (locallib.php!iassign_group_panel()) knows which saved state this page is
+    // working over; the server refuses to overwrite a newer state saved by a teammate and answers 'CONFLICT'.
+    formData.append('base_time', window.iassignGroup ? window.iassignGroup.baseTime : -1);
     var request = new XMLHttpRequest();
     request.open('POST', '" . $enderecoPOST_save . "');
     request.onload = function (e) {
       if (!window.flagclicksave) return;
       window.flagclicksave = false;
       document.getElementById('spinner-loading-save').style.visibility = 'hidden';
-      if (request.readyState === 4 && request.status === 200 && request.responseText.trim() === 'OK') {
+      var resp = null; // save_state() replies JSON: {status:'OK'|'CONFLICT'|'ERROR', ...}
+      try { resp = JSON.parse(request.responseText.substring(request.responseText.indexOf('{'))); } catch (err) { }
+      if (request.status === 200 && resp && resp.status === 'CONFLICT' && window.iassignGroup) {
+        window.iassignGroup.onConflict(resp);
+        return;
+        }
+      if (request.readyState === 4 && request.status === 200 && resp && resp.status === 'OK') {
+        if (window.iassignGroup) window.iassignGroup.onSaved(resp);
         document.getElementById('check-message-success-save').style.visibility = 'visible';
         setTimeout(function(){
           document.getElementById('check-message-success-save').style.visibility = 'hidden';
@@ -547,29 +592,64 @@ class html5 implements ilm_handle {
       // {iassign_statement}.preventlate==0 <=> do NOT allow submission after due date
       if ($enderecoPOST && $enderecoPOST!="&write_solution=1" && $enderecoPOST!="&write_solution=0") {
         // There is a valid address - caution with $iassign_statement_activity_item->preventlate==1 <=> allow submission after due date
-        $iassign .= "<center>\n<!-- load button -->\n" .
-          " <br> <br> <button " . $disabled_button . " class='btn btn-primary' type=button value='" . get_string('submit_iassign', 'iassign') . "' " .
-          " onClick = 'window.flagclick = true; window.jsAnalyseAnswer();' title='" . get_string('message_submit_iassign', 'iassign') . "'>" .
-          get_string('submit_iassign', 'iassign') . "</button> <i id='check-message-success-submission' class='fa fa-check' aria-hidden='true' " .
-          " style='position: absolute; color: green; font-size: 2.0rem; margin-left: 1rem; visibility: hidden;'><span style='font-size: 1.0rem;'>" .
-          get_string('get_answer', 'iassign') . "</span></i><i id='error-message-submission' class='fa fa-times' aria-hidden='true' " .
-          " style='position: absolute; color: red; font-size: 2.0rem; margin-left: 1rem; visibility: hidden;'><span style='font-size: 1.0rem;'>" .
-          get_string('error_insert_submissions', 'iassign') . "</span></i>\n" . " <div class='spinner-border' style='position: absolute; margin-left: 1rem; visibility: hidden;' " .
-          " id='spinner-loading' role='status'><span class='sr-only'>Loading...</span>\n  </div> </center>\n";
-
-        // "Save current state" button: only for iLM that support reloading an in-progress (not graded) answer - e.g. iVProg.
+        //
+        // Action bar: [Save current state] [Submit] side by side (they wrap on narrow screens), with a single status line below
+        // for the feedback messages/spinners. The element ids are the ones toggled (style.visibility) by the JS above
+        // (jsAnalyseAnswer(), getEvaluationCallback(), jsSaveState()); they all share the same spot in the status line.
+        // "Save current state" only for iLM that support reloading an in-progress (not graded) answer - e.g. iVProg.
         // {iassign_ilm}.editingbehavior==1 <=> iLM keeps working over a solution sent by the student (iGeom does not; iVProg does)
-        if ($ilm->editingbehavior == 1) {
-          $iassign .= "<center>\n" .
-            " <button class='btn btn-secondary' type=button value='" . get_string('save_state_iassign', 'iassign') . "' " .
-            " onClick = 'window.jsSaveState();' title='" . get_string('message_save_state_iassign', 'iassign') . "'>" .
-            get_string('save_state_iassign', 'iassign') . "</button> <i id='check-message-success-save' class='fa fa-check' aria-hidden='true' " .
-            " style='position: absolute; color: green; font-size: 2.0rem; margin-left: 1rem; visibility: hidden;'><span style='font-size: 1.0rem;'>" .
-            get_string('state_saved_iassign', 'iassign') . "</span></i><i id='error-message-save' class='fa fa-times' aria-hidden='true' " .
-            " style='position: absolute; color: red; font-size: 2.0rem; margin-left: 1rem; visibility: hidden;'><span style='font-size: 1.0rem;'>" .
-            get_string('error_insert_submissions', 'iassign') . "</span></i>\n" . " <div class='spinner-border' style='position: absolute; margin-left: 1rem; visibility: hidden;' " .
-            " id='spinner-loading-save' role='status'><span class='sr-only'>Loading...</span>\n  </div> </center>\n";
-          }
+        $show_save_button = ($ilm->editingbehavior == 1);
+
+        $status_msg = function ($id, $class, $icon, $text) {
+          return "  <span id='" . $id . "' class='iassign-status-item " . $class . "' style='visibility: hidden;'>" .
+            "<i class='fa " . $icon . "' aria-hidden='true'></i> " . $text . "</span>\n";
+          };
+        $status_spinner = function ($id) {
+          return "  <span id='" . $id . "' class='iassign-status-item' style='visibility: hidden;'>" .
+            "<span class='spinner-border spinner-border-sm' aria-hidden='true'></span>" .
+            "<span class='sr-only visually-hidden'>" . get_string('loading', 'core') . "</span></span>\n";
+          };
+
+        $iassign .= "
+<style>
+  .iassign-action-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: 1.5rem; }
+  .iassign-action-status { position: relative; min-height: 1.75rem; margin-top: .5rem; text-align: center; }
+  .iassign-action-status .iassign-status-item { position: absolute; left: 0; right: 0; top: 0; }
+</style>
+<!-- load button -->
+<div class='iassign-action-bar'>\n";
+
+        if ($show_save_button)
+          $iassign .= "  <button class='btn btn-secondary' type='button' onClick='window.jsSaveState();' title='" .
+            s(get_string('message_save_state_iassign', 'iassign')) . "'>" . get_string('save_state_iassign', 'iassign') . "</button>\n";
+
+        $iassign .= "  <button " . $disabled_button . " class='btn btn-primary' type='button' onClick='window.flagclick = true; window.jsAnalyseAnswer();' title='" .
+          s(get_string('message_submit_iassign', 'iassign')) . "'>" . get_string('submit_iassign', 'iassign') . "</button>\n";
+
+        $iassign .= "</div>\n<div class='iassign-action-status' role='status' aria-live='polite'>\n" .
+          $status_spinner('spinner-loading') .
+          $status_msg('check-message-success-submission', 'text-success', 'fa-check', get_string('get_answer', 'iassign')) .
+          $status_msg('error-message-submission', 'text-danger', 'fa-times', get_string('error_insert_submissions', 'iassign'));
+        if ($show_save_button)
+          $iassign .= $status_spinner('spinner-loading-save') .
+            $status_msg('check-message-success-save', 'text-success', 'fa-check', get_string('state_saved_iassign', 'iassign')) .
+            $status_msg('error-message-save', 'text-danger', 'fa-times', get_string('error_insert_submissions', 'iassign'));
+        $iassign .= "</div>
+<script type='text/javascript'>
+  // The status items share the same spot: when one becomes visible, hide the others (avoids overlapping messages).
+  (function () {
+    var box = document.querySelector('.iassign-action-status');
+    if (!box || !window.MutationObserver) return;
+    new MutationObserver(function (changes) {
+      changes.forEach(function (c) {
+        if (c.target.style.visibility !== 'visible') return;
+        Array.prototype.forEach.call(box.children, function (other) {
+          if (other !== c.target) other.style.visibility = 'hidden';
+        });
+      });
+    }).observe(box, { subtree: true, attributes: true, attributeFilter: ['style'] });
+  })();
+</script>\n";
         }
       } // if (!isguestuser() && $iassign_statement_activity_item->type_iassign != 1 && $allow_submit_button == 1)
 
