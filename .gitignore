@@ -1,0 +1,2 @@
+# Logs written by db/upgrade.php on each local upgrade
+ilm_debug/upgrade_*.txt
