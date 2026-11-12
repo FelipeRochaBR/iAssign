@@ -1,15 +1,18 @@
 <!--
 
-iQuestion - iLM (Interactive Learning Module) de pergunta de múltipla escolha
-para o iAssign.
+iQuestion - iLM (Interactive Learning Module) de exercícios curtos de
+programação para o iAssign: múltipla escolha, completar o código e ordenar
+linhas - uma questão ou uma sequência de questões na mesma página.
 
-Modo professor (autoria): escreve o enunciado, adiciona alternativas e marca
-qual delas é a correta.
-Modo aluno: lê o enunciado e escolhe uma alternativa.
+Modo professor (autoria): escolhe o tipo, monta o exercício e vê ao lado
+(ou abaixo, em telas estreitas) como o aluno vai ver.
+Modo aluno: resolve o exercício; se o professor permitir, pode "Verificar"
+antes de enviar.
 
 Uso local (fora do Moodle), só para testar a interface:
-  index.html                          -> modo aluno, sem gabarito
-  index.html?iLM_PARAM_Authoring=true -> modo professor (montar a pergunta)
+  index.html                          -> modo aluno, sem exercício
+  index.html?iLM_PARAM_Authoring=true -> modo professor (montar o exercício)
+  simulador.html                      -> professor + aluno + nota (precisa de http://, veja o README)
 
 Uso dentro do iAssign: o próprio iAssign monta a URL com os parâmetros
 iLM_PARAM_* (veja integration-functions.js) e carrega esta página num <iframe>.
@@ -17,9 +20,10 @@ iLM_PARAM_* (veja integration-functions.js) e carrega esta página num <iframe>.
 -->
 
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>iQuestion</title>
   <link rel="stylesheet" href="ilm_style.css" />
 </head>
@@ -28,23 +32,115 @@ iLM_PARAM_* (veja integration-functions.js) e carrega esta página num <iframe>.
 
   <div id="ilm-container">
 
-    <!-- Modo aluno: enunciado exibido aqui -->
-    <div id="enunciado" class="ilm-enunciado"></div>
+    <!-- Modo aluno: montado por iquestion.js!criarVisaoAluno() -->
+    <div id="area-aluno" style="display:none;"></div>
 
-    <!-- Modo aluno: alternativas para escolher -->
-    <div id="area-aluno" style="display:none;">
-      <div id="alternativas-aluno" class="ilm-alternativas"></div>
-    </div>
-
-    <!-- Modo professor (autoria): campos para montar a pergunta -->
+    <!-- Modo professor (autoria) -->
     <div id="area-professor" style="display:none;">
-      <label for="autoria-enunciado">Enunciado da pergunta:</label>
-      <textarea id="autoria-enunciado" rows="3" style="width:100%;"></textarea>
+      <div class="iq-autoria">
 
-      <p class="ilm-dica">Marque com o botão à esquerda de cada alternativa qual delas é a correta.</p>
-      <div id="lista-alternativas-professor" class="ilm-lista-alternativas-professor"></div>
+        <div class="iq-autoria-form">
+          <div class="iq-campo">
+            <span class="iq-rotulo">Formato</span>
+            <div class="iq-tipos" role="group" aria-label="Formato">
+              <button type="button" class="iq-tipo iq-formato" data-formato="unica">Uma questão</button>
+              <button type="button" class="iq-tipo iq-formato" data-formato="sequencia">Várias questões (uma abaixo da outra)</button>
+            </div>
+          </div>
 
-      <button type="button" id="btn-add-alternativa" onclick="adicionarAlternativaProfessor();">+ Adicionar alternativa</button>
+          <!-- Sequência: título e lista de questões -->
+          <div id="iq-seq-painel" hidden>
+            <div class="iq-campo">
+              <label class="iq-rotulo" for="autoria-seq-titulo">Título da sequência (opcional)</label>
+              <input type="text" id="autoria-seq-titulo" placeholder="Ex.: Módulo 1 - Variáveis e saída">
+            </div>
+            <div class="iq-campo">
+              <span class="iq-rotulo">Questões</span>
+              <p class="iq-dica">O aluno vê todas na mesma página, nesta ordem. A nota é a média das questões.</p>
+              <ol id="iq-seq-lista" class="iq-seq-lista"></ol>
+              <button type="button" id="btn-add-questao" class="iq-btn iq-btn-secundario">+ Adicionar questão</button>
+            </div>
+          </div>
+
+          <!-- Editor de uma questão (a única, ou a questão da sequência que está sendo editada) -->
+          <div id="iq-editor-item" class="iq-editor-item">
+          <h3 id="iq-editor-titulo" class="iq-editor-titulo" hidden></h3>
+          <div class="iq-campo">
+            <span class="iq-rotulo">Tipo de exercício</span>
+            <div class="iq-tipos" role="group" aria-label="Tipo de exercício">
+              <button type="button" class="iq-tipo" data-tipo="multipla">Múltipla escolha</button>
+              <button type="button" class="iq-tipo" data-tipo="lacunas">Completar o código</button>
+              <button type="button" class="iq-tipo" data-tipo="ordenar">Ordenar linhas</button>
+            </div>
+          </div>
+
+          <div class="iq-campo">
+            <label class="iq-rotulo" for="autoria-enunciado">Enunciado</label>
+            <textarea id="autoria-enunciado" rows="2" placeholder="Ex.: Complete o programa para mostrar a soma de a e b."></textarea>
+          </div>
+
+          <!-- Múltipla escolha -->
+          <div class="iq-secao-tipo" data-tipo="multipla">
+            <div class="iq-campo">
+              <label class="iq-rotulo" for="autoria-codigo-multipla">Código (opcional)</label>
+              <textarea id="autoria-codigo-multipla" class="iq-mono" rows="4" placeholder="Trecho de código mostrado junto com a pergunta"></textarea>
+            </div>
+            <div class="iq-campo">
+              <span class="iq-rotulo">Alternativas</span>
+              <p class="iq-dica">Marque com o botão à esquerda qual alternativa é a correta.</p>
+              <div id="lista-alternativas-professor" class="ilm-lista-alternativas-professor"></div>
+              <button type="button" id="btn-add-alternativa" class="iq-btn iq-btn-secundario" onclick="adicionarAlternativaProfessor();">+ Adicionar alternativa</button>
+            </div>
+          </div>
+
+          <!-- Completar o código -->
+          <div class="iq-secao-tipo" data-tipo="lacunas" hidden>
+            <div class="iq-campo">
+              <label class="iq-rotulo" for="autoria-codigo-lacunas">Código com lacunas</label>
+              <p class="iq-dica">Escreva o código completo e marque cada lacuna com colchetes duplos, por exemplo: <code>escreva([[soma]])</code></p>
+              <textarea id="autoria-codigo-lacunas" class="iq-mono" rows="6" placeholder="inteiro soma = a [[+]] b&#10;escreva([[soma]])"></textarea>
+            </div>
+            <div class="iq-campo">
+              <label class="iq-rotulo" for="autoria-distratores">Peças erradas (opcional)</label>
+              <p class="iq-dica">Uma por linha. Elas aparecem misturadas com as respostas certas.</p>
+              <textarea id="autoria-distratores" class="iq-mono" rows="3" placeholder="-&#10;a"></textarea>
+            </div>
+          </div>
+
+          <!-- Ordenar linhas -->
+          <div class="iq-secao-tipo" data-tipo="ordenar" hidden>
+            <div class="iq-campo">
+              <label class="iq-rotulo" for="autoria-linhas">Linhas do programa, na ordem correta</label>
+              <p class="iq-dica">Uma instrução por linha (a indentação é mantida). O aluno recebe as linhas embaralhadas.</p>
+              <textarea id="autoria-linhas" class="iq-mono" rows="6" placeholder="inteiro a = 2&#10;inteiro b = 3&#10;escreva(a + b)"></textarea>
+            </div>
+          </div>
+
+          <div class="iq-campo">
+            <label class="iq-rotulo" for="autoria-explicacao">Explicação (opcional)</label>
+            <p class="iq-dica">Mostrada ao aluno quando ele acerta usando "Verificar".</p>
+            <textarea id="autoria-explicacao" rows="2"></textarea>
+          </div>
+
+          <label class="iq-check">
+            <input type="checkbox" id="autoria-verificar" checked>
+            Permitir que o aluno verifique a resposta antes de enviar
+          </label>
+
+          <div id="iq-editor-acoes" class="iq-editor-acoes" hidden>
+            <button type="button" id="btn-concluir-questao" class="iq-btn iq-btn-concluir">Concluir esta questão</button>
+          </div>
+          </div><!-- #iq-editor-item -->
+
+          <ul id="autoria-avisos" class="iq-avisos" hidden></ul>
+        </div>
+
+        <div class="iq-autoria-previa">
+          <span class="iq-rotulo">Como o aluno verá</span>
+          <div id="previa-aluno" class="iq-previa"></div>
+        </div>
+
+      </div>
     </div>
 
   </div>

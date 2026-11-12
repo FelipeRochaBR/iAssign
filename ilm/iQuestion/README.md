@@ -1,9 +1,22 @@
 # iQuestion
 
-iLM (Interactive Learning Module) de pergunta de múltipla escolha para o
-iAssign. O professor escreve o enunciado, cadastra as alternativas e marca
-qual é a correta; o aluno lê a pergunta, escolhe uma alternativa e recebe a
-nota automaticamente (acertou = 1, errou = 0).
+iLM (Interactive Learning Module) de exercícios curtos de programação para o
+iAssign, em três tipos:
+
+- **Múltipla escolha**: enunciado, trecho de código opcional e alternativas.
+- **Completar o código**: o aluno preenche lacunas do código tocando nas peças
+  de um banco de palavras (respostas certas + peças erradas, embaralhadas).
+- **Ordenar linhas**: o aluno coloca em ordem as linhas embaralhadas de um
+  programa (arrastando ou com as setas ↑ ↓, que funcionam também no celular).
+
+As questões podem ser usadas sozinhas ou numa **sequência**: várias questões
+de qualquer tipo, uma abaixo da outra na mesma página, com barra de progresso;
+a nota da sequência é a média das questões.
+
+Se o professor permitir, o aluno pode usar **Verificar** antes de enviar: o
+iQuestion marca o que está certo e errado (sem mostrar a resposta) e, quando
+tudo está certo, mostra a explicação escrita pelo professor. A nota vai
+automaticamente para o iAssign.
 
 ## O que é um iLM
 
@@ -18,40 +31,58 @@ dentro de um `<iframe>`. O iAssign se comunica com ele de duas formas:
 
 ## Como funciona o iQuestion
 
-- **Modo professor** (`iLM_PARAM_Authoring` presente): a tela mostra um campo
-  de enunciado e uma lista de alternativas (mínimo 2, máximo 8). Cada
-  alternativa tem um texto e um botão de rádio para marcar se ela é a
-  correta. É possível adicionar (`+ Adicionar alternativa`) e remover
-  alternativas (`✕`).
-- **Modo aluno**: a tela mostra o enunciado e as alternativas cadastradas
-  como botões de rádio, sem indicar qual é a correta. O aluno marca uma e
-  isso vira a resposta salva.
-- **Avaliação**: automática, comparando o índice da alternativa marcada pelo
-  aluno com o índice marcado como correta pelo professor.
+- **Modo professor** (`iLM_PARAM_Authoring` presente): o professor escolhe o
+  tipo, escreve o enunciado e o conteúdo do tipo, uma explicação opcional e se
+  o aluno pode verificar antes de enviar. Ao lado (ou abaixo, em telas
+  estreitas) aparece ao vivo como o aluno verá o exercício, e avisos do que
+  falta preencher.
+  - Completar o código: o código é escrito completo, com cada lacuna marcada
+    por colchetes duplos, por exemplo `escreva([[soma]])`.
+  - Ordenar linhas: uma instrução por linha, na ordem correta (a indentação é
+    mantida).
+- **Modo aluno**: a tela do tipo escolhido; a resposta salva é restaurada ao
+  reabrir.
+- **Avaliação** (0 a 1):
+  - múltipla escolha: 1 se acertou, 0 se errou;
+  - completar o código: fração das lacunas preenchidas corretamente;
+  - ordenar linhas: fração das linhas na posição correta.
 
 ### Formato do arquivo salvo
 
 O conteúdo salvo (gabarito, e também a resposta do aluno) é um JSON
-serializado como string:
+serializado como string. Arquivos antigos, sem `"tipo"`, continuam valendo
+como múltipla escolha.
 
 ```json
 {
-  "enunciado": "Qual é a capital da França?",
-  "alternativas": ["Londres", "Paris", "Roma", "Madri"],
-  "correta": 1
+  "tipo": "lacunas",
+  "enunciado": "Complete o programa para mostrar a soma de a e b.",
+  "codigo": "inteiro soma = a [[+]] b\nescreva([[soma]])",
+  "distratores": ["-", "a"],
+  "explicacao": "Somamos com + e mostramos a variável soma.",
+  "verificar": true
 }
 ```
 
-Quando o aluno responde, `getAnswer()` acrescenta o campo `"escolha"` com o
-índice marcado, para permitir revisar a resposta depois.
+Sequência: `{"tipo": "sequencia", "titulo": "...", "itens": [<questões>]}`; na
+resposta do aluno, `getAnswer()` acrescenta `"respostas"`, com a resposta de
+cada questão (mesmos campos da tabela abaixo), na mesma ordem de `itens`.
+
+Campos por tipo:
+
+| Tipo | Gabarito | Resposta do aluno (acrescentada por `getAnswer()`) |
+|---|---|---|
+| `multipla` | `alternativas`, `correta`, `codigo` (opcional) | `escolha` (índice) |
+| `lacunas` | `codigo` com `[[resposta]]`, `distratores` | `preenchimento` (texto de cada lacuna, ou `null`) |
+| `ordenar` | `linhas` (na ordem correta) | `ordem` (índices de `linhas` na ordem montada) |
 
 ## Contrato obrigatório (em `iquestion.js`)
 
 - `getAnswer()` → string com o que deve ser salvo no servidor.
   - Modo professor: o JSON da pergunta recém-montada (vira o "gabarito").
   - Modo aluno: o JSON da pergunta + a alternativa escolhida.
-- `getEvaluation()` → `1` se a alternativa escolhida bate com a alternativa
-  correta, `0` caso contrário. Em modo professor sempre `1`.
+- `getEvaluation()` → nota de 0 a 1 (veja "Avaliação" acima). Em modo
+  professor sempre `1`.
 - `setExerciseContent(contentStr)` → chamada quando já existe um exercício
   salvo para carregar (professor reabrindo para editar, ou aluno abrindo
   para responder/revisar). Recebe o JSON serializado.
@@ -66,7 +97,7 @@ iQuestion/
   index.html                    <- ponto de entrada, carregado no <iframe>
   ilm_style.css
   integration-functions.js      <- boilerplate genérico iLM <-> iAssign (raramente muda)
-  iquestion.js                  <- lógica da pergunta de múltipla escolha
+  iquestion.js                  <- lógica dos três tipos de exercício
   simulador.html                 <- só para testar localmente, NÃO entra no .zip do iAssign
 ```
 
