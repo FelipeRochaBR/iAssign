@@ -154,7 +154,7 @@ class backup_iassign_activity_structure_step extends backup_activity_structure_s
 
     // Each student submission (to each {iassign_statement}) : {iassign_submission}.iassign_statementid = {iassign_statement}.id
     $iassign_submission = new backup_nested_element('iassign_submission', array('id'), array('iassign_statementid',
-      'userid', 'timecreated', 'timemodified', 'grade', 'teacher', 'answer', 'experiment', 'status', 'previous_grade'));
+      'userid', 'timecreated', 'timemodified', 'grade', 'teacher', 'answer', 'experiment', 'status', 'previous_grade', 'authorid'));
     //DEBUG foreach ($iassign_submission as $one_statement) $msg_ias .= " - " . $one_statement->id . "," . $one_statement->iassign_statementid .
     //DEBUG   "," . $one_statement->userid . "," . $one_statement->timecreated . "\n";
 
@@ -211,6 +211,7 @@ class backup_iassign_activity_structure_step extends backup_activity_structure_s
     // Define id annotations: during processing, store them in the table {backup_ids_temp} (if existing...)
     $iassign_submission->annotate_ids('user', 'userid'); // {iassign_submission}.userid = {user}.id
     $iassign_submission->annotate_ids('user', 'teacher'); // {iassign_submission}.teacher = {user}.id
+    $iassign_submission->annotate_ids('user', 'authorid'); // {iassign_submission}.authorid = {user}.id (who submitted)
     $iassign_submission_comment->annotate_ids('user', 'comment_authorid'); // {iassign_submission_comment}.comment_authorid = {user}.id
 
     //DEBUG: See '/var/www/html/" . SAW . "/backup/util/structure/backup_nested_element.class.php ! public get_source_sql()"

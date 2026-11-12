@@ -300,6 +300,7 @@ function iassign_delete_instance ($id) {
       // Drafts ("save current state") and group presence heartbeats of this activity
       $DB->delete_records("iassign_submission_state", array("iassign_statementid" => $iassign_statement->id));
       $DB->delete_records("iassign_group_presence", array("iassign_statementid" => $iassign_statement->id));
+      $DB->delete_records("iassign_session", array("iassign_statementid" => $iassign_statement->id));
       }
     $DB->delete_records("iassign_statement", array("iassignid" => $iassign->id));
     }

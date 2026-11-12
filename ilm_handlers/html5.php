@@ -480,6 +480,7 @@ class html5 implements ilm_handle {
     // Group activity: the collaboration panel (locallib.php!iassign_group_panel()) knows which saved state this page is
     // working over; the server refuses to overwrite a newer state saved by a teammate and answers 'CONFLICT'.
     formData.append('base_time', window.iassignGroup ? window.iassignGroup.baseTime : -1);
+    formData.append('force', (window.iassignGroup && window.iassignGroup.forceNext) ? 1 : 0); // 'Save mine anyway' after a conflict
     var request = new XMLHttpRequest();
     request.open('POST', '" . $enderecoPOST_save . "');
     request.onload = function (e) {

@@ -30,6 +30,10 @@ class group_collab {
   const ONLINE_SECONDS = 25;
   /** How many versions the history lists. */
   const HISTORY_LIMIT = 50;
+  /** Research heartbeat of the activity page (both conditions), see heartbeat_session() (ms). */
+  const HEARTBEAT_MS = 15000;
+  /** A work session ends when no heartbeat arrives for this long (4 missed heartbeats). */
+  const SESSION_GAP_SECONDS = 60;
 
   /** @var \stdClass {iassign} record */
   protected $iassign;
@@ -42,6 +46,21 @@ class group_collab {
     $this->iassign = $iassign;
     $this->cm = $cm;
     $this->courseid = $courseid;
+    }
+
+  /// Triggers one of the research events (classes/event/*) of the current user in this iAssign instance.
+  //  'other' always gets iassign_statementid and groupsize (1 = individual condition).
+  public function trigger_event ($eventname, $statementid, $objectid, $other = array()) {
+    global $USER;
+    $other['iassign_statementid'] = (int) $statementid;
+    $other['groupsize'] = count($this->member_ids($USER->id));
+    $class = '\\mod_iassign\\event\\' . $eventname;
+    $event = $class::create(array(
+      'objectid' => (int) $objectid,
+      'context'  => \context_module::instance($this->cm->id),
+      'other'    => $other
+      ));
+    $event->trigger();
     }
 
   // ---------------------------------------------------------------------------------------------------------------
@@ -121,17 +140,34 @@ class group_collab {
   //  @param bool $force true: save even if a teammate saved a newer state after $base_time
   //  @return array reply for the AJAX caller: status 'OK' (with 'time', 'latest'), 'CONFLICT' (with 'latest') or 'ERROR'
   public function save_state ($statementid, $userid, $content, $base_time = -1, $force = false) {
+    global $USER;
+
+    $members = $this->member_ids($userid);
+    $forced = false; // saved over a newer teammate state the student knew about (after a conflict warning / "Keep mine")
+
+    // Group activity: refuse to silently overwrite a state saved by a teammate after the student's page was loaded
+    if (count($members) > 1 && $base_time >= 0) {
+      $latest = $this->latest_state($statementid, $userid);
+      if ($latest && $latest->timecreated > $base_time && $latest->authorid != $USER->id) {
+        if (!$force) {
+          $this->trigger_event('save_conflict', $statementid, $statementid, array('otherauthorid' => (int) $latest->authorid));
+          return array('status' => 'CONFLICT', 'latest' => $this->state_info($latest));
+          }
+        $forced = true;
+        }
+      }
+
+    $reply = $this->store_state($statementid, $userid, $content);
+    if ($reply['status'] == 'OK')
+      $this->trigger_event('state_saved', $statementid, $reply['latest']['id'], array('forced' => $forced ? 1 : 0));
+    return $reply;
+    }
+
+  /// Appends $content as the newest state of $userid and of every teammate (authorid = current user).
+  protected function store_state ($statementid, $userid, $content) {
     global $DB, $USER;
 
     $members = $this->member_ids($userid);
-
-    // Group activity: refuse to silently overwrite a state saved by a teammate after the student's page was loaded
-    if (count($members) > 1 && $base_time >= 0 && !$force) {
-      $latest = $this->latest_state($statementid, $userid);
-      if ($latest && $latest->timecreated > $base_time && $latest->authorid != $USER->id)
-        return array('status' => 'CONFLICT', 'latest' => $this->state_info($latest));
-      }
-
     $timenow = time();
     $myid = 0;
     foreach ($members as $memberid) {
@@ -192,7 +228,42 @@ class group_collab {
     $version = $this->get_version($statementid, $userid, $stateid);
     if (!$version)
       return array('status' => 'ERROR', 'error' => 'version');
-    return $this->save_state($statementid, $userid, $version->answer, -1, true);
+    $reply = $this->store_state($statementid, $userid, $version->answer);
+    if ($reply['status'] == 'OK')
+      $this->trigger_event('version_restored', $statementid, $reply['latest']['id'], array('fromstateid' => (int) $stateid));
+    return $reply;
+    }
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Research instrumentation (identical in individual and group conditions)
+
+  /// Work sessions: called on every heartbeat of the activity page (open and visible, see iassign::iassign_activity_tracker()).
+  //  Extends the current session of $userid while heartbeats keep coming (gap <= SESSION_GAP_SECONDS), otherwise starts a
+  //  new one. $active: the student used keyboard/mouse since the previous heartbeat -> counts as active time.
+  public function heartbeat_session ($statementid, $userid, $active) {
+    global $DB;
+    $timenow = time();
+
+    $last = $DB->get_records('iassign_session', array('iassign_statementid' => $statementid, 'userid' => $userid),
+      'timeend DESC, id DESC', '*', 0, 1);
+    $last = $last ? reset($last) : false;
+
+    if ($last && $last->timeend >= $timenow - self::SESSION_GAP_SECONDS) {
+      if ($active) // at most one (generous) heartbeat interval per heartbeat: never counts long pauses
+        $last->activeseconds += min($timenow - $last->timeend, 2 * (int) (self::HEARTBEAT_MS / 1000));
+      $last->timeend = $timenow;
+      $DB->update_record('iassign_session', $last);
+      return $last->id;
+      }
+
+    return $DB->insert_record('iassign_session', (object) array(
+      'iassign_statementid' => $statementid,
+      'userid'              => $userid,
+      'groupsize'           => count($this->member_ids($userid)),
+      'timestart'           => $timenow,
+      'timeend'             => $timenow,
+      'activeseconds'       => 0
+      ));
     }
 
   // ---------------------------------------------------------------------------------------------------------------

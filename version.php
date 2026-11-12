@@ -90,6 +90,7 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+// v 3.0.17 2026/11/13 (3.0.17 2026111300) research instrumentation: events, work sessions (both conditions), submission author
 // v 3.0.16 2026/11/12 (3.0.16 2026111200) group collaboration screen: group panel, who saved/when, presence, conflict detection, live sync
 // v 3.0.15 2026/09/28 (3.0.15 2026092800) asynchronous "save current state" button: student can save in-progress work and resume later
 // v 3.0.14 2026/09/18 (3.0.14 2026091800) register iQuestion iLM (multiple-choice question) in {iassign_ilm}
@@ -107,8 +108,8 @@ defined('MOODLE_INTERNAL') || die();
 // v 1.0    2012/10/16
 
 $plugin->component = 'mod_iassign';  // Full name of the plugin (used for diagnostics)
-$plugin->release = '3.0.16 (Build: 2026111200)'; // Human-readable version name
-$plugin->version = 2026111200;      // The current module version (Date: YYYYMMDDXX)
+$plugin->release = '3.0.17 (Build: 2026111300)'; // Human-readable version name
+$plugin->version = 2026111300;     // The current module version (Date: YYYYMMDDXX)
 $plugin->requires = 2015111610;      // Requires this Moodle version since 3.0.0)
 $plugin->maturity = MATURITY_STABLE; // How stable the plugin is: MATURITY_ALPHA, MATURITY_BETA, MATURITY_RC, MATURITY_STABLE (Moodle 2.0 and above)
 $plugin->cron = 60;

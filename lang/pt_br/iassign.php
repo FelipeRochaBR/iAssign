@@ -281,6 +281,12 @@ $string['eventiassigndeleted']            = 'excluindo atividade interativa';
 $string['eventiassignupdated']            = 'atualizando atividade interativa';
 $string['eventsubmissioncommentcreated']  = 'adicionar comentário';
 $string['eventsubmissioncommentupdated']  = 'novo comentário submetido';
+// Research instrumentation events (classes/event/collab_event_base.php)
+$string['event_activity_opened']          = 'Atividade aberta';
+$string['event_state_saved']              = 'Estado atual salvo';
+$string['event_version_restored']         = 'Versão restaurada';
+$string['event_save_conflict']            = 'Salvamento recusado (versão mais recente de um colega)';
+$string['event_autosync_changed']         = 'Opção de sincronizar automaticamente';
 $string['eventsubmissioncreated']         = 'adicionar submissão';
 $string['eventsubmissionupdated']         = 'atualizando submissão';
 $string['eventsubmissionviewed']          = 'visualizando atividade interativa submetida';

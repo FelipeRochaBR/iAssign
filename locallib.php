@@ -795,10 +795,12 @@ class iassign {
     } elseif ($type == 'student') {
       $DB->delete_records('iassign_allsubmissions', array('userid' => $item, 'iassign_statementid' => $exercise));
       $DB->delete_records('iassign_submission_state', array('userid' => $item, 'iassign_statementid' => $exercise));
+      $DB->delete_records('iassign_session', array('userid' => $item, 'iassign_statementid' => $exercise));
     } elseif ($type == 'exercise') {
       $DB->delete_records('iassign_allsubmissions', array('iassign_statementid' => $item));
       $DB->delete_records('iassign_submission_state', array('iassign_statementid' => $item));
       $DB->delete_records('iassign_group_presence', array('iassign_statementid' => $item));
+      $DB->delete_records('iassign_session', array('iassign_statementid' => $item));
       }
     }
 
@@ -2058,6 +2060,7 @@ silva1OriginalData () {
         //2023/05/25 $newentry->grade = round($iLM_PARAM_RealGrade, 2);
         $newentry->grade = round($iLM_PARAM_RealGrade * $activity_scale, 2); // iLM must return through 'getEvaluation()' a value between 0 and 1
         $newentry->answer = $iLM_PARAM_ArchiveContent;
+        $newentry->authorid = $USER->id; // who clicked "Submit" (research: contribution of each group member)
 
         $DB->insert_record("iassign_allsubmissions", $newentry);
         }
@@ -2191,6 +2194,9 @@ silva1OriginalData () {
     // Insert new entry to {iassign_statement} or update it
     if ($this->write_solution == 1) {
       $timenow = time();
+      // Research: submission events carry the activity and the group size (1 = individual condition)
+      $event_other = array('iassign_statementid' => (int) $this->activity->get_activity()->id,
+                           'groupsize' => count($this->iassign_group_members($this->userid_iassign)));
 
       // New record to table {iassign_submission}
       if (!$iassign_submission) {
@@ -2205,6 +2211,7 @@ silva1OriginalData () {
         //2023/05/25 $newentry->grade = round($grade_student, 2);
         $newentry->grade = round($iLM_PARAM_RealGrade * $activity_scale, 2); // iLM must return through 'getEvaluation()' a value between 0 and 1
         $newentry->status = $status;
+        $newentry->authorid = $USER->id; // who clicked "Submit" (copied to the group by iassign_sync_group_submission())
         $newentry->experiment = 1;
 
         if (!$newentry->id = $DB->insert_record("iassign_submission", $newentry)) {
@@ -2213,7 +2220,8 @@ silva1OriginalData () {
           // Trigger module viewed event.
           $event = \mod_iassign\event\submission_created::create(array(
             'objectid' => $this->iassign->id,
-            'context' => $this->context
+            'context' => $this->context,
+            'other' => $event_other
             ));
           $event->add_record_snapshot('course', $this->course);
           $event->trigger();
@@ -2231,6 +2239,7 @@ silva1OriginalData () {
         //2023/05/25 $newentry->grade = round($grade_student, 2);
         $newentry->grade = round($iLM_PARAM_RealGrade * $activity_scale, 2); // iLM must return through 'getEvaluation()' a value between 0 and 1
         $newentry->status = $status;
+        $newentry->authorid = $USER->id; // who clicked "Submit" (copied to the group by iassign_sync_group_submission())
         $newentry->experiment = $iassign_submission->experiment + 1;
         if (!$DB->update_record("iassign_submission", $newentry)) {
           print_error('error_update', 'iassign');
@@ -2242,9 +2251,11 @@ silva1OriginalData () {
           // Trigger module viewed event.
           $event = \mod_iassign\event\submission_updated::create(array(
             'objectid' => $this->iassign->id,
-            'context' => $this->context
+            'context' => $this->context,
+            'other' => $event_other
             ));
           $event->add_record_snapshot('course', $this->course);
+          $event->trigger(); // was missing: re-submissions after a wrong answer never reached the log
           $this->update_grade_student($newentry->userid, $newentry->iassign_statementid, $this->iassign->id);
           }
       } else { // elseif ($iassign_submission->status != 3)
@@ -2261,13 +2272,15 @@ silva1OriginalData () {
           //2023/05/25 $newentry->grade = round($grade_student, 2);
           $newentry->grade = round($iLM_PARAM_RealGrade * $activity_scale, 2); // iLM must return through 'getEvaluation()' a value between 0 and 1
           $newentry->status = $status;
+          $newentry->authorid = $USER->id; // who clicked "Submit" (copied to the group by iassign_sync_group_submission())
           $newentry->experiment = $iassign_submission->experiment + 1;
           if (!$DB->update_record("iassign_submission", $newentry))
             print_error('error_update', 'iassign');
           else {
             $event = \mod_iassign\event\submission_updated::create(array(
               'objectid' => $this->iassign->id,
-              'context' => $this->context
+              'context' => $this->context,
+              'other' => $event_other
               ));
             $event->add_record_snapshot('course', $this->course);
             $event->trigger();
@@ -3117,6 +3130,67 @@ silva1OriginalData () {
     } // function iassign_group_members($userid)
 
 
+  /// Research instrumentation of the activity page - IDENTICAL in the individual and in the group condition, so the
+  //  engagement indicators of both conditions are measured the same way (it shows nothing to the student):
+  //  - logs the event 'activity_opened' (which exercise, group size)
+  //  - starts a work session ({iassign_session}) and keeps it alive with a heartbeat to group_ajax.php every
+  //    group_collab::HEARTBEAT_MS while the page is visible; a hidden tab (or a closed page) sends nothing, so the
+  //    session ends after group_collab::SESSION_GAP_SECONDS. Each heartbeat tells if keyboard/mouse were used since the
+  //    previous one (also inside the iLM frame), which gives the "active seconds" of the session.
+  function iassign_activity_tracker ($iassign_statement) {
+    global $CFG, $USER;
+
+    if (isguestuser() || $this->userid_iassign != $USER->id)
+      return '';
+
+    $collab = $this->group_collab();
+    $collab->trigger_event('activity_opened', $iassign_statement->id, $iassign_statement->id);
+    $collab->heartbeat_session($iassign_statement->id, $USER->id, 0);
+
+    $config = array(
+      'url' => $CFG->wwwroot . '/mod/iassign/group_ajax.php?cmid=' . $this->cm->id . '&statementid=' . $iassign_statement->id .
+               '&sesskey=' . sesskey() . '&action=heartbeat',
+      'intervalMs' => \mod_iassign\group_collab::HEARTBEAT_MS
+      );
+
+    return "\n<script type=\"text/javascript\">\nwindow.iassignTrackerConfig = " .
+      json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";\n" . <<<'JS'
+(function () {
+  var cfg = window.iassignTrackerConfig;
+  if (!cfg) return;
+  var lastInput = 0;
+  var EVENTS = ['mousedown', 'mousemove', 'keydown', 'wheel', 'touchstart', 'scroll'];
+  function mark() { lastInput = Date.now(); }
+  function listen(doc) {
+    EVENTS.forEach(function (e) { doc.addEventListener(e, mark, { capture: true, passive: true }); });
+  }
+  listen(document);
+  // The iLM runs in a same-origin frame: listen inside it too (it may be reloaded, so check periodically)
+  function hookFrame() {
+    try {
+      var f = window.frames[0];
+      if (f && f.document && !f.document.__iassignTracked) {
+        f.document.__iassignTracked = true;
+        listen(f.document);
+      }
+    } catch (e) {}
+  }
+  window.addEventListener('load', hookFrame);
+  setInterval(hookFrame, 5000);
+
+  function beat() {
+    if (document.hidden) return; // a hidden tab is not working time
+    var active = (Date.now() - lastInput) <= cfg.intervalMs ? 1 : 0;
+    fetch(cfg.url + '&active=' + active, { credentials: 'same-origin', cache: 'no-store' }).catch(function () {});
+  }
+  setInterval(beat, cfg.intervalMs);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) beat(); });
+})();
+JS
+      . "\n</script>\n";
+    } // function iassign_activity_tracker($iassign_statement)
+
+
   /// Group / versions panel, printed above the iLM:
   //  - group activity (student with teammates): members with presence (who has the activity open now), who saved the
   //    most recent state and when, last submission, "Sync automatically"; polls group_ajax.php (every few seconds while
@@ -3392,6 +3466,7 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
 
   // ---- hooks used by html5.php!jsSaveState() ----
   G.onSaved = function (resp) {
+    G.forceNext = false;
     G.baseTime = resp.time;
     takeSnapshot();
     hideAlert();
@@ -3403,6 +3478,7 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
     showAlert('danger', fill(S.group_conflict, { author: authorOf(latest), time: latest.timestr }), [
       { label: S.group_overwrite, cls: 'btn-danger', onClick: function () {
           G.baseTime = latest.time;
+          G.forceNext = true; // logged as a forced save (overwrote a teammate's newer version knowingly)
           hideAlert();
           if (typeof window.jsSaveState === 'function') window.jsSaveState();
         } },
@@ -3420,8 +3496,14 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
   var autosync = true;
   try { autosync = window.localStorage.getItem('iassign_group_autosync') !== '0'; } catch (e) {}
   el.autosync.checked = autosync;
+  // Research: the choice changes the treatment, so it is logged when the activity opens and whenever it changes
+  function logAutosync(initial) {
+    api('autosync', { enabled: el.autosync.checked ? 1 : 0, initial: initial ? 1 : 0 }).catch(function () {});
+  }
+  logAutosync(true);
   el.autosync.addEventListener('change', function () {
     try { window.localStorage.setItem('iassign_group_autosync', el.autosync.checked ? '1' : '0'); } catch (e) {}
+    logAutosync(false);
   });
 
   function renderMembers(members) {
@@ -3550,6 +3632,7 @@ JS;
       $entry->answer              = $source->answer;
       $entry->experiment          = $source->experiment;
       $entry->status              = $source->status;
+      $entry->authorid            = isset($source->authorid) ? $source->authorid : 0; // who submitted (for the whole group)
 
       if ($target) {
         $entry->id          = $target->id;
@@ -4276,6 +4359,7 @@ JS;
           else
             $group_base_time = max($latest_draft ? $latest_draft->timecreated : 0,
               ($iassign_submission && $iassign_submission->answer != '0') ? $iassign_submission->timemodified : 0);
+          $output .= $this->iassign_activity_tracker($iassign_statement_activity_item); // research: event + work sessions (both conditions)
           $output .= $this->iassign_group_panel($iassign_statement_activity_item, $group_base_time);
 
           // Presents the iLM
@@ -6454,6 +6538,7 @@ class activity {
       // Drafts / version history and group presence of this activity (they would be orphans otherwise)
       $DB->delete_records('iassign_submission_state', array('iassign_statementid' => $this->activity->id));
       $DB->delete_records('iassign_group_presence', array('iassign_statementid' => $this->activity->id));
+      $DB->delete_records('iassign_session', array('iassign_statementid' => $this->activity->id));
       $delete_iassign_current = $DB->delete_records('iassign_statement', array('id' => $this->activity->id));
       iassign::update_grade_iassign($this->activity->iassignid);
 

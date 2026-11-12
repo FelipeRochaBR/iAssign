@@ -139,7 +139,8 @@
         <FIELD NAME="teacher"             TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="id teacher"                                                                                         PREVIOUS="previous_grade"               NEXT="answer"/>
         <FIELD NAME="answer"              TYPE="text" LENGTH="big" NOTNULL="true"                              SEQUENCE="false"  ENUM="false" COMMENT="String with the last solution sent by the student"                                                  PREVIOUS="teacher"             NEXT="experiment"/>
         <FIELD NAME="experiment"          TYPE="int"  LENGTH="1"   NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Total  of submissions"                                                                              PREVIOUS="answer"              NEXT="status"/>
-        <FIELD NAME="status"              TYPE="int"  LENGTH="1"   NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Status of activities. 0-not submitted/1-submitted/2-evaluated as incorrect/3-evaluated as correct"  PREVIOUS="experiment"/>
+        <FIELD NAME="status"              TYPE="int"  LENGTH="1"   NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Status of activities. 0-not submitted/1-submitted/2-evaluated as incorrect/3-evaluated as correct"  PREVIOUS="experiment"         NEXT="authorid"/>
+        <FIELD NAME="authorid"            TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Who clicked Submit last time (in group activities the submission is copied to every member; 0 = unknown/legacy)" PREVIOUS="status"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary"             TYPE="primary" FIELDS="id" NEXT="iassign_statementid"/>
@@ -185,7 +186,8 @@
         <FIELD NAME="userid"              TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="id of submitting author"                                                                            PREVIOUS="iassign_statementid" NEXT="timecreated"/>
         <FIELD NAME="timecreated"         TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Date of first submission"                                                                           PREVIOUS="userid"              NEXT="grade"/>
         <FIELD NAME="grade"               TYPE="float"             NOTNULL="true" UNSIGNED="false" DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Grade of evaluation"                                                                                PREVIOUS="timecreated"        NEXT="answer"/>
-        <FIELD NAME="answer"              TYPE="text" LENGTH="big" NOTNULL="true"                              SEQUENCE="false"  ENUM="false" COMMENT="String with the solution sent by the student"                                                  PREVIOUS="grade" />
+        <FIELD NAME="answer"              TYPE="text" LENGTH="big" NOTNULL="true"                              SEQUENCE="false"  ENUM="false" COMMENT="String with the solution sent by the student"                                                  PREVIOUS="grade"               NEXT="authorid"/>
+        <FIELD NAME="authorid"            TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Who clicked Submit (in group activities one entry per member; 0 = unknown/legacy)" PREVIOUS="answer"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary"      TYPE="primary" FIELDS="id" NEXT="iassign_statementid"/>
@@ -209,7 +211,7 @@
         <INDEX NAME="statementuserid" UNIQUE="false" FIELDS="iassign_statementid, userid"/>
       </INDEXES>
     </TABLE>
-    <TABLE NAME="iassign_group_presence" COMMENT="Group activities: last moment each student had the activity open (heartbeat sent by the group panel), used to show who is working right now" PREVIOUS="iassign_submission_state">
+    <TABLE NAME="iassign_group_presence" COMMENT="Group activities: last moment each student had the activity open (heartbeat sent by the group panel), used to show who is working right now" PREVIOUS="iassign_submission_state" NEXT="iassign_session">
       <FIELDS>
         <FIELD NAME="id"                  TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"              SEQUENCE="true"   ENUM="false" COMMENT="Primary key of table"            NEXT="iassign_statementid"/>
         <FIELD NAME="iassign_statementid" TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="id interactive activity"         PREVIOUS="id"                  NEXT="userid"/>
@@ -222,6 +224,24 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="statementuserid" UNIQUE="true" FIELDS="iassign_statementid, userid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="iassign_session" COMMENT="Research instrumentation: work sessions of each student in each activity (both individual and group conditions), built from the heartbeat sent while the activity is open and visible" PREVIOUS="iassign_group_presence">
+      <FIELDS>
+        <FIELD NAME="id"                  TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"              SEQUENCE="true"   ENUM="false" COMMENT="Primary key of table"                                            NEXT="iassign_statementid"/>
+        <FIELD NAME="iassign_statementid" TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="id interactive activity"                                         PREVIOUS="id"                  NEXT="userid"/>
+        <FIELD NAME="userid"              TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="id of the student"                                               PREVIOUS="iassign_statementid" NEXT="groupsize"/>
+        <FIELD NAME="groupsize"           TYPE="int"  LENGTH="4"   NOTNULL="true" UNSIGNED="true"  DEFAULT="1" SEQUENCE="false"  ENUM="false" COMMENT="Members sharing the submission when the session started (1 = individual condition)" PREVIOUS="userid"              NEXT="timestart"/>
+        <FIELD NAME="timestart"           TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="First heartbeat of the session"                                  PREVIOUS="groupsize"           NEXT="timeend"/>
+        <FIELD NAME="timeend"             TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Last heartbeat of the session (activity open and visible)"       PREVIOUS="timestart"           NEXT="activeseconds"/>
+        <FIELD NAME="activeseconds"       TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Seconds with keyboard/mouse interaction inside the session"      PREVIOUS="timeend"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary"      TYPE="primary" FIELDS="id" NEXT="iassign_statementid"/>
+        <KEY NAME="iassign_statementid" TYPE="foreign" FIELDS="iassign_statementid" REFTABLE="iassign_statement" REFFIELDS="id" PREVIOUS="primary"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="statementuserid" UNIQUE="false" FIELDS="iassign_statementid, userid"/>
       </INDEXES>
     </TABLE>
   </TABLES>

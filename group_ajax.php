@@ -10,6 +10,8 @@
  *   history - list of saved versions (newest first, without contents)
  *   version - content of one saved version ('stateid'), used by the panel to check it can be reopened before restoring
  *   restore - appends version 'stateid' as the newest state of the whole group
+ *   heartbeat - research: extends/starts the student's work session ('active' = 1 if keyboard/mouse was used)
+ *   autosync  - research: logs the student's "Sync automatically" choice ('enabled', 'initial')
  * Replies JSON: {status: 'OK'|'CONFLICT'|'ERROR', ...}
  *
  * @package   mod_iassign
@@ -60,6 +62,18 @@ switch ($action) {
 
   case 'restore':
     $reply = $collab->restore($statement->id, $userid, required_param('stateid', PARAM_INT));
+    break;
+
+  case 'heartbeat': // research instrumentation: work sessions, same in both conditions
+    $collab->heartbeat_session($statement->id, $userid, optional_param('active', 0, PARAM_INT) ? 1 : 0);
+    $reply = array('status' => 'OK');
+    break;
+
+  case 'autosync': // research instrumentation: "Sync automatically" choice of the student (changes the treatment)
+    $collab->trigger_event('autosync_changed', $statement->id, $statement->id, array(
+      'enabled' => optional_param('enabled', 0, PARAM_INT) ? 1 : 0,
+      'initial' => optional_param('initial', 0, PARAM_INT) ? 1 : 0));
+    $reply = array('status' => 'OK');
     break;
 
   default:

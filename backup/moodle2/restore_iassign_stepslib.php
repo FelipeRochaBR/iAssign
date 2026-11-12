@@ -326,6 +326,7 @@ class restore_iassign_activity_structure_step extends restore_activity_structure
     $data->iassign_statementid = $this->get_new_parentid('iassign_statement');
     $data->userid = $this->get_mappingid('user', $data->userid);
     $data->teacher = $this->get_mappingid('user', $data->teacher);
+    $data->authorid = empty($data->authorid) ? 0 : (int) $this->get_mappingid('user', $data->authorid, 0); // who submitted (0 = unknown)
     $newitemid = $DB->insert_record('iassign_submission', $data); // insert in 'iassign_submission'
     $this->set_mapping('iassign_submission', $oldid, $newitemid, true); // Has related fileareas
     }

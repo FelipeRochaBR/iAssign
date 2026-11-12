@@ -282,6 +282,12 @@ $string['eventiassigndeleted']            = 'remove activity';
 $string['eventiassignupdated']            = 'update activity';
 $string['eventsubmissioncommentcreated']  = 'add submission comment';
 $string['eventsubmissioncommentupdated']  = 'submission comment updated';
+// Research instrumentation events (classes/event/collab_event_base.php)
+$string['event_activity_opened']          = 'Activity opened';
+$string['event_state_saved']              = 'Current state saved';
+$string['event_version_restored']         = 'Version restored';
+$string['event_save_conflict']            = 'Save refused (newer version of a teammate)';
+$string['event_autosync_changed']         = 'Sync automatically option';
 $string['eventsubmissioncreated']         = 'add submission';
 $string['eventsubmissionupdated']         = 'update submission';
 $string['eventsubmissionviewed']          = 'view activity submission';
