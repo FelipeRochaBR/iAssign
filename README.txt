@@ -1,8 +1,9 @@
-iAssign version 2.1.70
+iAssign version 3.0.17
 ------------------------
 
 By iMatica/iMath - free interactive tools for teaching-learning Math
    Patricia Rodrigues <patricnet@ig.com.br>, Leônidas O. Brandão <leo@ime.usp.br>, Igor Félix <igormf@ime.usp.br>
+   Group activities and collaboration: Felipe Pires Rocha <felipepiresrocha@ime.usp.br>
 
 
 .: About iAssign :.
@@ -47,7 +48,7 @@ Note: This plugin is part of iAssign SET see more in https://moodle.org/plugins/
 
 .: Quick install instructions (to be used by the system administrator) :.
 
-0) Be sure you have (at least) Moodle 2.4 until Moodle 2.6 installed
+0) Be sure you have Moodle 3.0 or newer installed (version 3.0.17 was tested under Moodle 5.0)
 1) Be sure to have the latest language package, such as English (en), Portuguese (pt_br).
 2) Be sure to have the latest version of the module iAssign (see in https://github.com/leonidasbrandao/iAssign master)
 3) Unpack 'iAssign.2.1.x.zip' (or 'iAssign.2.1.x.tgz')
@@ -58,7 +59,29 @@ Note: This plugin is part of iAssign SET see more in https://moodle.org/plugins/
 
 .: What is news :.
 
-Considering the iAssign for Moodle 1.9, the new featuress in this version are:
+Version 3.0.13 to 3.0.17 (2026) - group activities:
+
+ - Group submission: in the iAssign settings, "Share one submission per group" = Yes makes the answer, status and
+   grade sent by any member of a Moodle group valid for the whole group.
+ - "Save current state" button: the student saves the work in progress (without evaluation) and resumes it later.
+   In a group activity the saved state is shared by the group.
+ - Group panel above the iLM: group members (and who has the activity open now), who saved the last version and when,
+   the last submission, and a warning when a teammate saves a newer version. With "Sync automatically" the activity
+   is reloaded with the newer version when the student has no unsaved changes.
+ - A save is refused if a teammate saved a newer version that the student has not loaded yet (the student chooses
+   between loading it or keeping his/her own).
+ - Version history: every saved state is kept; any old version can be restored (restoring never deletes anything).
+ - iVProg: programs with an incomplete command (e.g. an empty expression) can not be saved or submitted, since iVProg
+   can not open them again.
+ - Records for research, the same for individual and group activities:
+   + events in the Moodle log (activity opened, state saved, version restored, save refused, "Sync automatically"),
+     all of them with the activity and the group size (1 = individual);
+   + work sessions in table {iassign_session} (start, end and seconds with keyboard/mouse activity), from a signal sent
+     every 15 s while the activity page is visible (a session ends after 60 s without signal);
+   + who clicked "Submit" ({iassign_submission}.authorid and {iassign_allsubmissions}.authorid).
+ - Backup/restore keeps the group submission setting and the saved states.
+
+Considering the iAssign for Moodle 1.9, the new featuress in version 2 are:
 
  - the teacher can produce a new interactive activity directly "on-line", using the new iLM editor (but is still possible to upload files);
  - in a course with more than one teacher, it is now possible to use a local repository.
