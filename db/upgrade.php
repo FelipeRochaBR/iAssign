@@ -114,6 +114,9 @@ function xmldb_iassign_upgrade ($oldversion) {
   // - 2021122300: new version iVProg "1.0.20211130"
   // - 2022011300: new version iVProg "1.0.20220113"
   // - 2023041000: new version iVProg "1.0.20230707", iHanoi "1.0.20230526"
+  // - 2026082900: {iassign}.group_submission
+  // - 2026091800: register iQuestion "1.0.0" in {iassign_ilm}
+  // - 2026092800: create {iassign_submission_state} - "save current state" button (asynchronous activity)
   if ($oldversion < 2023041000) { // < 2020070613
     $msgD .= "+ " . $oldversion . " < 2020070613: " . "\n" ; //DEBUG to ./mod/iassign/ilm_debug/upgrade_AAAA_MM_DD_hh_mm_ss.txt
     $msgD .= "  * {iassign_allsubmissions}.previous_grade; insere iLM (iGeom 5.9.22; iHanoi 1.0.20230526;  iVProg 1.0.20230504; iFractions 3.1.0)\n"; //DEBUG
@@ -679,6 +682,117 @@ function xmldb_iassign_upgrade ($oldversion) {
     // iAssign savepoint reached.
     upgrade_mod_savepoint(true, 2021122300, 'iassign');
     } // if ($oldversion < 2021122300)
+
+  // v 3.0.13 2026/08/29 (2026082900) group submission: one submission shared by all members of the student's group
+  if ($oldversion < 2026082900) {
+    $msgD .= "+ " . $oldversion . " < 2026082900: add {iassign}.group_submission\n"; //DEBUG
+    $table = new xmldb_table('iassign');
+    $field = new xmldb_field('group_submission', XMLDB_TYPE_INTEGER, '1', XMLDB_UNSIGNED, XMLDB_NOTNULL, null, '0', 'max_experiment');
+    if (!$dbman->field_exists($table, $field))
+      $dbman->add_field($table, $field);
+    upgrade_mod_savepoint(true, 2026082900, 'iassign');
+    } // if ($oldversion < 2026082900)
+
+  // v 3.0.14 2026/09/18 (2026091800) register iQuestion iLM (multiple-choice question)
+  if ($oldversion < 2026091800) {
+    $msgD .= "+ " . $oldversion . " < 2026091800: register iQuestion in {iassign_ilm}\n"; //DEBUG
+    $strNot_installed = '';
+
+    $records = array(
+      array_combine( // iQuestion 1.0.0 - HTML5
+        array('name', 'url', 'version', 'type', 'description',
+              'extension', 'file_jar', 'file_class', 'width', 'height',
+              'enable', 'evaluate', 'reevaluate', 'timemodified', 'author', 'timecreated',
+              'editingbehavior', 'submissionbehavior', 'action_buttons'),
+        array('iQuestion', '', '1.0.0', 'HTML5', '{"en":"Interactive multiple-choice question","pt_br":"Pergunta interativa de múltipla escolha"}',
+              'json', 'ilm/iQuestion/', 'index.html', 700, 500,
+              1, 1, 1, time(), $USER->id, time(),
+              1, 0, 1))
+      );
+
+    $iassign_ilm = $DB->get_records('iassign_ilm');
+    foreach ($records as $record) {
+      $newentry = new stdClass();
+      $newentry->name = $record['name'];
+      $newentry->url = $record['url'];
+      $newentry->version = $record['version'];
+      $newentry->type = $record['type'];
+      $newentry->description = $record['description'];
+      $newentry->extension = $record['extension'];
+      $newentry->file_jar = $record['file_jar'];
+      $newentry->file_class = $record['file_class'];
+      $newentry->width = $record['width'];
+      $newentry->height = $record['height'];
+      $newentry->enable = $record['enable'];
+      $newentry->evaluate = $record['evaluate'];
+      $newentry->reevaluate = $record['reevaluate'];
+      $newentry->timemodified = time();
+      $newentry->author = $USER->id;
+      $newentry->timecreated = time();
+      $newentry->editingbehavior = $record['editingbehavior'];
+      $newentry->submissionbehavior = $record['submissionbehavior'];
+      $newentry->action_buttons = $record['action_buttons'];
+
+      $exists = -1;
+      $last_id = -1; // to be used to get the last version of the same iLM (will be its 'parent')
+      if ($iassign_ilm) { // Search if there is any previous installed iLM that is also in the current version of iAssign
+        $record_type = strtolower($record['type']);
+        foreach ($iassign_ilm as $iassign) {
+          if ($iassign->name == $record['name'] && strtolower($iassign->type) == $record_type) {
+            if ($iassign->id > $last_id)
+              $last_id = $iassign->id; // last ID => last version (hopefully)
+            if ($iassign->version == $record['version']) { // or with the one with the same version
+              $exists = $iassign->id; // iLM found - exit with the last one, same version
+              $strNot_installed .= "\n" . '  <li>' . $record['name'] . ';' . $record['type'] . ';' . $record['version'] . ' </li>' . "\n";
+              break;
+              }
+            }
+          }
+        $newentry->parent = $last_id; // parent is the last iLM found (corresponde to the smallest ID)
+        }
+      else
+        $newentry->parent = -1; // first iLM of this one
+      if ($exists == -1) { // iLM does not exists or it has old version
+        $answerbd = $DB->insert_record("iassign_ilm", $newentry, false);
+        if (!$answerbd) $msgD .= "  * ERROR insert_record('iassign_ilm', newentry,...): " . $newentry->name . "\n"; //DEBUG
+        else $msgD .= "  * insert_record('iassign_ilm', newentry,...): " . $newentry->name . "\n"; //DEBUG
+        }
+      else $msgD .= "  * 'iassign_ilm' " . $record['name'] . " already exists with id=" . $last_id . "!\n"; //DEBUG
+      } // foreach ($records as $record)
+
+    if ($strNot_installed != '') {
+      print '<div class="alert alert-warning alert-block fade in " role="alert" data-aria-autofocus="true" tabindex="0" >' . "\n";
+      print get_string('upgrade_alert_exists', 'iassign'); // iLM previouly existent
+      print ' <ul style="margin-top: 1rem;">' . "\n";
+      print $strNot_installed;
+      print ' </ul>' . "\n";
+      print '</div>' . "\n";
+      }
+
+    upgrade_mod_savepoint(true, 2026091800, 'iassign');
+    } // if ($oldversion < 2026091800)
+
+  // v 3.0.15 2026/09/28 (2026092800) create {iassign_submission_state}: append-only log used by the "save current state" button,
+  // allowing the student to save the activity's in-progress content (asynchronously) without submitting/grading it, and resume later.
+  if ($oldversion < 2026092800) {
+    $msgD .= "+ " . $oldversion . " < 2026092800: create {iassign_submission_state}\n"; //DEBUG
+
+    $table = new xmldb_table('iassign_submission_state');
+    $table->add_field('id', XMLDB_TYPE_INTEGER, '10', XMLDB_UNSIGNED, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+    $table->add_field('iassign_statementid', XMLDB_TYPE_INTEGER, '10', XMLDB_UNSIGNED, XMLDB_NOTNULL, null, '0');
+    $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', XMLDB_UNSIGNED, XMLDB_NOTNULL, null, '0');
+    $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', XMLDB_UNSIGNED, XMLDB_NOTNULL, null, '0');
+    $table->add_field('answer', XMLDB_TYPE_TEXT, 'big', null, XMLDB_NOTNULL, null, null);
+    $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+    $table->add_key('iassign_statementid', XMLDB_KEY_FOREIGN, ['iassign_statementid'], 'iassign_statement', ['id']);
+    $table->add_index('statementuserid', XMLDB_INDEX_NOTUNIQUE, ['iassign_statementid', 'userid']);
+    if (!$dbman->table_exists($table)) {
+      $dbman->create_table($table);
+      $msgD .= "  * {iassign_submission_state}.{id, iassign_statementid, userid, timecreated, answer}\n"; //DEBUG
+      }
+
+    upgrade_mod_savepoint(true, 2026092800, 'iassign');
+    } // if ($oldversion < 2026092800)
 
 
  //DEBUG to ./mod/iassign/ilm_debug/upgrade_AAAA_MM_DD_hh_mm_ss.txt

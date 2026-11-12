@@ -1,0 +1,130 @@
+<!--
+
+simulador.html
+NÃO faz parte do pacote do iLM (não vai dentro do .zip enviado ao iAssign).
+É só uma ferramenta local para testar o iQuestion sem precisar do Moodle.
+
+Reproduz o papel do iAssign: carrega o iLM dentro de <iframe>s e chama
+getAnswer()/getEvaluation() de fora, exatamente como window.frames[0].getAnswer()
+faz na integração real (mod/iassign/ilm_handlers/html5.php).
+
+Fluxo:
+  1. Monte a pergunta no iframe "Professor" (à esquerda).
+  2. Clique em "Salvar pergunta e enviar para o aluno".
+  3. Responda no iframe "Aluno" (à direita).
+  4. Clique em "Corrigir resposta do aluno".
+
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Simulador do iQuestion</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 16px; }
+    h1 { font-size: 1.2em; }
+    .colunas { display: flex; gap: 16px; flex-wrap: wrap; }
+    .coluna { flex: 1 1 380px; min-width: 320px; }
+    .coluna h2 { font-size: 1em; background: #eee; padding: 6px 10px; margin: 0 0 8px; }
+    iframe { width: 100%; height: 420px; border: 1px solid #ccc; }
+    button { padding: 8px 12px; margin-top: 8px; cursor: pointer; }
+    #status { margin: 12px 0; padding: 8px 10px; background: #fffbcc; border: 1px solid #e0d060; display: none; }
+    #resultado { margin-top: 8px; padding: 8px 10px; background: #eef7ee; border: 1px solid #9c9; white-space: pre-wrap; display: none; }
+  </style>
+</head>
+<body>
+
+  <h1>Simulador local do iQuestion (não é parte do pacote do iLM)</h1>
+  <div id="aviso-file" style="display:none; margin-bottom:12px; padding:8px 10px; background:#fde2e2; border:1px solid #d99; color:#900;">
+    ⚠️ Esta página foi aberta direto do disco (<code>file://</code>). Os botões não vão
+    funcionar assim — o navegador bloqueia a comunicação entre os dois iframes por
+    segurança. Sirva a pasta com um servidor local, por exemplo rodando
+    <code>python3 -m http.server 8000</code> nesta pasta e abrindo
+    <code>http://localhost:8000/simulador.html</code>.
+  </div>
+  <div id="status"></div>
+
+  <div class="colunas">
+    <div class="coluna">
+      <h2>1. Professor monta a pergunta</h2>
+      <iframe id="frame-professor" src="index.html?iLM_PARAM_Authoring=true"></iframe>
+      <button onclick="salvarESimularEnvio();">Salvar pergunta e enviar para o aluno →</button>
+    </div>
+
+    <div class="coluna">
+      <h2>2. Aluno responde</h2>
+      <iframe id="frame-aluno" src="about:blank"></iframe>
+      <button onclick="corrigirResposta();">Corrigir resposta do aluno</button>
+    </div>
+  </div>
+
+  <div id="resultado"></div>
+
+  <script>
+    if (window.location.protocol === 'file:') {
+      document.getElementById('aviso-file').style.display = 'block';
+    }
+
+    function mostrarStatus(msg, ehErro) {
+      var el = document.getElementById('status');
+      el.innerText = msg;
+      el.style.background = ehErro ? '#fde2e2' : '#fffbcc';
+      el.style.border = ehErro ? '1px solid #d99' : '1px solid #e0d060';
+      el.style.display = 'block';
+    }
+
+    function salvarESimularEnvio() {
+      try {
+        var profWin = document.getElementById('frame-professor').contentWindow;
+        var conteudo = profWin.getAnswer();
+
+        // Simula o servidor: o gabarito vira um arquivo que o aluno carrega via
+        // iLM_PARAM_Assignment (na integração real seria uma URL no Moodle).
+        var blob = new Blob([conteudo], { type: 'text/plain' });
+        var url = URL.createObjectURL(blob);
+
+        document.getElementById('frame-aluno').src =
+          'index.html?iLM_PARAM_Assignment=' + encodeURIComponent(url);
+
+        mostrarStatus('Pergunta salva e enviada para o aluno. Conteúdo salvo: ' + conteudo);
+        document.getElementById('resultado').style.display = 'none';
+      } catch (e) {
+        console.error(e);
+        mostrarStatus(
+          'Não consegui salvar (' + e.message + '). Se você abriu este arquivo com ' +
+          'duplo clique (file://), sirva a pasta com um servidor local — veja o aviso acima.',
+          true
+        );
+      }
+    }
+
+    function corrigirResposta() {
+      try {
+        var alunoWin = document.getElementById('frame-aluno').contentWindow;
+        if (!alunoWin || typeof alunoWin.getAnswer !== 'function') {
+          mostrarStatus('O aluno ainda não recebeu nenhuma pergunta. Clique em "Salvar pergunta" primeiro.', true);
+          return;
+        }
+
+        var resposta = alunoWin.getAnswer();
+        var nota = alunoWin.getEvaluation();
+
+        var el = document.getElementById('resultado');
+        el.innerText =
+          'Nota: ' + nota + ' (1 = acertou, 0 = errou)\n' +
+          'Resposta salva: ' + resposta;
+        el.style.display = 'block';
+      } catch (e) {
+        console.error(e);
+        mostrarStatus(
+          'Não consegui corrigir (' + e.message + '). Se você abriu este arquivo com ' +
+          'duplo clique (file://), sirva a pasta com um servidor local — veja o aviso acima.',
+          true
+        );
+      }
+    }
+  </script>
+
+</body>
+</html>

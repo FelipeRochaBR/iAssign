@@ -236,38 +236,6 @@ function iassign_update_instance ($data, $mform) {
   }
 
 
-  /// Insert submission in iAssign activities.
-function iassign_insert_submission($iassignid, $statementid, $userid) {
-    global $DB, $USER;
-
-    $group_submission_enabled = $DB->get_field('iassign', 'group_submission', array('id' => $iassignid));
-
-    if ($group_submission_enabled) {
-        $cm = $DB->get_record('course_modules', array('instance' => $iassignid, 'module' => 1));
-        $groupid = groups_get_activity_group($cm, true);
-        $groupmembers = groups_get_members($groupid, 'u.id, u.firstname, u.lastname', 'u.id');
-
-        foreach ($groupmembers as $member) {
-            $submission = new stdClass();
-            $submission->iassign_statementid = $statementid;
-            $submission->iassignid = $iassignid;
-            $submission->userid = $member->id;
-            $submission->timecreated = time();
-            $submission->status = 'submitted';
-            $DB->insert_record('iassign_submission', $submission);
-        }
-    } else {
-        $submission = new stdClass();
-        $submission->iassign_statementid = $statementid;
-        $submission->iassignid = $iassignid;
-        $submission->userid = $userid;
-        $submission->timecreated = time();
-        $submission->status = 'submitted';
-        $DB->insert_record('iassign_submission', $submission);
-    }
-}
-
-
 /// Update an item in grade of activities iAssign. 
 //  @param int $iassignid Id to activities iAssign
 function iassign_grade_item_update ($iassignid) {

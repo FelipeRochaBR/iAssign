@@ -60,7 +60,8 @@
         <FIELD NAME="timedue"        TYPE="int"  LENGTH="10"     NOTNULL="true"   UNSIGNED="true"  DEFAULT="0"   SEQUENCE="false" ENUM="false" COMMENT="Closing date of the activity"                                                       PREVIOUS="timeavailable"  NEXT="preventlate"/>
         <FIELD NAME="preventlate"    TYPE="int"  LENGTH="2"      NOTNULL="false"  UNSIGNED="true"  DEFAULT="1"   SEQUENCE="false" ENUM="false" COMMENT="Allow sending late? 0 - no / 1 - yes"                                               PREVIOUS="timedue"        NEXT="test"/>
         <FIELD NAME="test"           TYPE="int"  LENGTH="1"      NOTNULL="false"  UNSIGNED="true"  DEFAULT="0"   SEQUENCE="false" ENUM="false" COMMENT="Activity to release test after closing time? 0 - no / 1 - yes"                      PREVIOUS="preventlate"    NEXT="max_experiment"/>
-        <FIELD NAME="max_experiment" TYPE="int"  LENGTH="10"     NOTNULL="true"   UNSIGNED="true"  DEFAULT="0"   SEQUENCE="false" ENUM="false" COMMENT="Maximum number of attempts. 0 - unlimited"                                          PREVIOUS="test"/>
+        <FIELD NAME="max_experiment" TYPE="int"  LENGTH="10"     NOTNULL="true"   UNSIGNED="true"  DEFAULT="0"   SEQUENCE="false" ENUM="false" COMMENT="Maximum number of attempts. 0 - unlimited"                                          PREVIOUS="test"           NEXT="group_submission"/>
+        <FIELD NAME="group_submission" TYPE="int" LENGTH="1"     NOTNULL="true"   UNSIGNED="true"  DEFAULT="0"   SEQUENCE="false" ENUM="false" COMMENT="Group submission: one submission shared by all members of the student's group. 0 - no / 1 - yes" PREVIOUS="max_experiment"/>
       </FIELDS>
       <KEYS>
         <KEY   NAME="primary" TYPE="primary" FIELDS="id" />
@@ -177,7 +178,7 @@
         <KEY NAME="iassign_statementid" TYPE="foreign" FIELDS="iassign_statementid" REFTABLE="iassign_statement" REFFIELDS="id" PREVIOUS="primary"/>
       </KEYS>
     </TABLE>
-    <TABLE NAME="iassign_allsubmissions" COMMENT="Stores all submissions from students" PREVIOUS="iassign_security">
+    <TABLE NAME="iassign_allsubmissions" COMMENT="Stores all submissions from students" PREVIOUS="iassign_security" NEXT="iassign_submission_state">
       <FIELDS>
         <FIELD NAME="id"                  TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"              SEQUENCE="true"   ENUM="false" COMMENT="Primary key of table"                                                                                                              NEXT="iassign_statementid"/>
         <FIELD NAME="iassign_statementid" TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="id interactive activity"                                                                            PREVIOUS="id"                  NEXT="userid"/>
@@ -190,6 +191,22 @@
         <KEY NAME="primary"      TYPE="primary" FIELDS="id" NEXT="iassign_statementid"/>
         <KEY NAME="iassign_statementid" TYPE="foreign" FIELDS="iassign_statementid" REFTABLE="iassign_statement" REFFIELDS="id" PREVIOUS="primary"/>
       </KEYS>
+    </TABLE>
+    <TABLE NAME="iassign_submission_state" COMMENT="Append-only log of asynchronous 'save current state' events sent by students while doing an activity, without being evaluated/graded" PREVIOUS="iassign_allsubmissions">
+      <FIELDS>
+        <FIELD NAME="id"                  TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"              SEQUENCE="true"   ENUM="false" COMMENT="Primary key of table"                                                    NEXT="iassign_statementid"/>
+        <FIELD NAME="iassign_statementid" TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="id interactive activity"                                                  PREVIOUS="id"                  NEXT="userid"/>
+        <FIELD NAME="userid"              TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="id of student who saved this state"                                       PREVIOUS="iassign_statementid" NEXT="timecreated"/>
+        <FIELD NAME="timecreated"         TYPE="int"  LENGTH="10"  NOTNULL="true" UNSIGNED="true"  DEFAULT="0" SEQUENCE="false"  ENUM="false" COMMENT="Moment the state was saved"                                                PREVIOUS="userid"              NEXT="answer"/>
+        <FIELD NAME="answer"              TYPE="text" LENGTH="big" NOTNULL="true"                              SEQUENCE="false"  ENUM="false" COMMENT="String with the (not yet submitted) content of the activity at this moment"  PREVIOUS="timecreated"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary"      TYPE="primary" FIELDS="id" NEXT="iassign_statementid"/>
+        <KEY NAME="iassign_statementid" TYPE="foreign" FIELDS="iassign_statementid" REFTABLE="iassign_statement" REFFIELDS="id" PREVIOUS="primary"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="statementuserid" UNIQUE="false" FIELDS="iassign_statementid, userid"/>
+      </INDEXES>
     </TABLE>
   </TABLES>
 </XMLDB>

@@ -102,6 +102,8 @@ class ilm_security {
     $newentry->iassign_statementid = $iassign_statementid; // when came from iLM previw => there is none activity, use -1
     $newentry->userid = $userid;
     //_ $newentry->file = $content_or_id_from_ilm_security;
+    if (!$content_or_id_from_ilm_security)
+      return null; // avoid error trying to load empty content
     $newentry->file = ilm_security::convert2utf8($content_or_id_from_ilm_security); // must be utf8mb4_unicode_ci
 
     $newentry->timecreated = $timecreated; // who calls will generate: $timecreated = time(); $token == md5($timecreated);

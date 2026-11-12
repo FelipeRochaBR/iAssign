@@ -465,7 +465,7 @@ class restore_iassign_activity_structure_step extends restore_activity_structure
               $newentry = new stdClass();
               $newentry->id = $iassign_statement->id;
               $newentry->filesid = $choosen_file->id;
-//2023--- linha abaixo estava comentada, voltei ela!
+//2023--- line bellow was commented!
               if (!$DB->update_record("iassign_statement", $newentry)) print_error('error_update', 'iassign'); // update 'iassign_statement' : filesid <- {files}.id'
               $msgD .= " " . " - Update {iassign_statement}.id=" . $newentry->id . ", filesid=" . $iassign_statement->filesid . " <- " . $newentry->filesid . "; \n"; //D
               }
@@ -481,7 +481,7 @@ class restore_iassign_activity_structure_step extends restore_activity_structure
 
               $msgD .= " " . " - Update {files.itemid}: id=" . $newentry->id . ", itemid=" . $choosen_file->itemid . "<-" . $newentry->itemid . "\n"; //D
 
-//2023--- linha abaixo estava comentada, voltei ela!
+//2023--- line bellow was commented!
               if (!$DB->update_record('files', $newentry)) print_error('error_update', 'iassign'); // atualiza {files}.itemid := {iassign_statement}.id
 
               }
@@ -497,14 +497,14 @@ class restore_iassign_activity_structure_step extends restore_activity_structure
       } // foreach ($list_all_instances_of_iassign as $iassign)
 
 //DEBUG
-// /var/www/html/saw2021_1/mod/iassign/ilm_debug/escreva.php
+// /var/www/html/moodle/mod/iassign/ilm_debug/escreva.php
     $timeWrite = date('Y_m_d_H_i_s'); // Year_Month_Day_Hour_Minutes_Seconds
     $filenamewrite = "output_restore_after_execute_" . $timeWrite . ".txt";
 
     // ./mod/iassign/ilm_debug/escreva.php: writeContent($filetype1, $pathbase, $outputFile, $msgToRegister)
     // ./mod/iassign/ilm_debug/saida_restore_after_execute.txt
-    // require_once(__DIR__ . "/../../ilm_debug/escreva.php"); //leo REMOVER! xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    require_once($CFG->dirroot . "/mod/iassign/ilm_debug/escreva.php"); //leo REMOVER! xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    // require_once(__DIR__ . "/../../ilm_debug/escreva.php"); //leo REMOVER!
+    require_once($CFG->dirroot . "/mod/iassign/ilm_debug/escreva.php"); //leo REMOVER!
     $resp = writeContent("", "", $filenamewrite, $msgD); // ($filetype1, $pathbase, $outputFile, $msgToRegister) //leo REMOVER!
     //D echo "restore_iassign_stepslib: resp=" . $resp . ", #files=" . $countF . "<br/>\n";
 //DEBUG

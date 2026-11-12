@@ -1,0 +1,4 @@
+./mod/iassign/db/upgrade.php: oldversion=2026082600 upgrade in ./mod/iassign/ilm_debug/upgrade_AAAA_MM_DD_hh_mm_ss.txt
+ - Initial time: 2026_08_29_12_30_32
+ - Final time: 2026_08_29_12_30_32
+

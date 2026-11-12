@@ -1,28 +1,63 @@
 <?php
 
 /**
- * This php script contains all the stuff to display iAssign.
+ * This php script contains all the stuff to present iAssign activity.
  * 
  * @author Patricia Alves Rodrigues
  * @author Leo^nidas O. Branda~o
  * @version v 1.0 2012/10/16
  * @package mod_iassign
  * @since 2010/09/27
- * @copyright iMatica (<a href="http://www.matematica.br">iMath</a>) - Computer Science Dep. of IME-USP (Brazil)
+ * @copyeleft LInE (<a href="http://www.matematica.br">iMath</a>)
+ *            iMatica (<a href="http://www.usp.br/line">LInE</a>)
+ *            Computer Science Dep. of IME-USP (Brazil)
  * 
  * <b>License</b> 
  *  - http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
+/// About the relation Moodle/iAssign through  "view.php"
+/// @calledby locallib.php!view_iassign_current(): onclick="submit_comment('http://.../mod/iassign/view.php?id=...')"
+/// @calledby locallib.php!write_comment_submission(): $return = "" . $CFG->wwwroot . "/mod/iassign/view.php?action=viewsubmission&id="...
+//  1776/9739 : function add_comment () : com codigo teste invocando "generateCallTrace(.)"
+//  1795/9739 :   $contexto = $this->generateCallTrace(); // debug_backtrace()
+//  3084/9739 : function view_iassign_current () : tem o codigo JS com a funcao JS "function view_iassign_current()"
+//                onclick="submit_comment('http://localhost/saw/mod/iassign/view.php?id=26981&action=newcomment&iassign_current=6848&iassign_submission_current=35665&userid_iassign=10823&row=6&column=2')
+//                resultado: submit_comment(url): url=http://localhost/saw/mod/iassign/view.php?id=26981&action=newcomment&iassign_current=6848&iassign_submission_current=35665&userid_iassign=10823&row=6&column=2
+//  3790/9739 :   [JS] function submit_comment(url) :
+//  5610/9739 : function write_comment_submission ()
 
 require_once("../../config.php");
 require_once("lib.php");
 require_once($CFG->libdir . '/completionlib.php'); // $completion = new completion_info($course); $completion->set_module_viewed($cm);
 require_once($CFG->libdir . '/plagiarismlib.php');
 
-//REMOVER
-//DEBUG 2020/08/31
-//D require_once("ilm_debug/escreva.php"); //leo REMOVER! xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+//DEBUG To be used in debug process, mainlly when 'view.php' is called by JavaScript (e.g. during send comment, call evaluation)
+function generateCallTrace () { //DEBUG @sse locallib.php!generateCallTrace()
+  // $e = new Exception(); $trace = explode("\n", $e->getTraceAsString());
+  $trace = debug_print_backtrace();
+  // reverse array to make steps line up chronologically
+  if (is_null($trace)) return "";
+  $trace = array_reverse($trace);
+  array_shift($trace); // remove {main}
+  array_pop($trace); // remove call to this method
+  $length = count($trace);
+  $result = array();
+  for ($i = 0; $i < $length; $i++) {
+    $result[] = ($i + 1)  . ')' . substr($trace[$i], strpos($trace[$i], ' ')); // replace '#someNum' with '$i)', set the right ordering
+    }
+  return "\t" . implode("\n\t", $result);
+  }
+
+
+//DEBUG To trace "view.php" called by JavaScript (e.g. when teacher/nonediting teacher send comment, student calls evaluation)
+//DEBUG can use generateCallTrace() to write into "ilm_debug/" throught "ilm_debug/escreva.php".
+//DEBUG echo "<pre>generateCallTrace(): " . generateCallTrace() . "</pre><br/>\n"; exit;
+//D require_once("ilm_debug/escreva.php");
 //D $resp = writeContent("", "", "todos_files_iassign.txt", "Teste"); // ($filetype1, $pathbase, $outputFile, $msgToRegister) //leo REMOVER!
+
+//DEBUG To debug problems with Moodle FileSystem
 function get_all_iassign_files () {
   // Get all iAssign files on table 'files':
   // files = id; contenthash; pathnamehash; contextid; component; filearea; itemid; filepath; filename; userid; filesize; mimetype; status; source; author;

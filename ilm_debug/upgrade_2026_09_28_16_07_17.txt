@@ -1,0 +1,6 @@
+./mod/iassign/db/upgrade.php: oldversion=2026091800 upgrade in ./mod/iassign/ilm_debug/upgrade_AAAA_MM_DD_hh_mm_ss.txt
+ - Initial time: 2026_09_28_16_07_17
++ 2026091800 < 2026092800: create {iassign_submission_state}
+  * {iassign_submission_state}.{id, iassign_statementid, userid, timecreated, answer}
+ - Final time: 2026_09_28_16_07_17
+

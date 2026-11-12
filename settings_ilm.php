@@ -110,7 +110,7 @@ if ($action == 'new_version') { // Administration > plugins > iAssign : after se
 
   //echo "settings_ilm.php: form = "; print_r($form); echo "<br/>";
 
-  if (!$mform) {
+  if (!isset($mform) || !$mform) {
     // Get values from the parent iLM in {iassign_ilm}, put them in array $param
     $param = ilm_settings::add_edit_copy_ilm($ilm_id, $action); // locallib.php: class iassign
   
@@ -131,11 +131,11 @@ if ($action == 'new_version') { // Administration > plugins > iAssign : after se
     }
   //D $msg1 .= "param->ilm_id=" . $param->ilm_id; echo "settings_ilm.php: msg1 = " . $msg1 . "<br/>";
 
-  if ($mform->is_cancelled()) {
+  if (isset($mform) && $mform->is_cancelled()) {
     close_window();
     die;
     }
-  else { // Final form processing! Registered by 'locallib.php' with ilm_settings::copy_new_version_ilm($formdata)
+  else if (isset($mform)) { // Final form processing! Registered by 'locallib.php' with ilm_settings::copy_new_version_ilm($formdata)
     $formdata = $mform->get_data();
     if ($formdata) { // already exists the iLM
       ilm_settings::copy_new_version_ilm($formdata); // locallib.php: class ilm_settings
@@ -146,7 +146,8 @@ if ($action == 'new_version') { // Administration > plugins > iAssign : after se
   
   print($OUTPUT->header());
   print($OUTPUT->heading($title));
-  $mform->display();
+  if (isset($mform))
+    $mform->display();
   print($OUTPUT->footer());
   die;
   }

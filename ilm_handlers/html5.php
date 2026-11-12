@@ -327,10 +327,15 @@ class html5 implements ilm_handle {
     // Prepare JS to the button "send" to the iAssign addres in $enderecoPOST
     // $enderecoPOST is prepared in 'locallib.php:view_iassign_current()'
     // with "http://.../mod/iassign/view.php?action=get_answer&iassign_submission_current=ID1&id=ID2&iassign_current=ID3&write_solution=1&userid_iassign=ID4&write_solution=1
-    //   ID1 = {iassign_submission}.id 
+    //   ID1 = {iassign_submission}.id
     //   ID2 = {course_modules}.id     with {course_modules}.instance = {iassign}.id
     //   ID3 = {iassign_statement}.id
     //   ID4 = {user}.id
+
+    // Asynchronous "save current state": same address as $enderecoPOST, but routed to 'locallib.php!save_state()' instead of 'get_answer()'.
+    // save_state() only stores the raw content (no evaluation/grade, no gradebook update) - see ./mod/iassign/locallib.php!save_state()
+    $enderecoPOST_save = str_replace('action=get_answer', 'action=save_state', $enderecoPOST);
+
     $iassign = "
 <script type='text/javascript'>
   //<![CDATA[
@@ -421,6 +426,42 @@ class html5 implements ilm_handle {
       };
       request.send(formData);
       }
+    }
+
+  // Asynchronous 'save current state': stores the in-progress content (no evaluation/grade), so the student can
+  // resume it later. Always sent through AJAX, regardless of {iassign_ilm}.submissionbehavior.
+  window.flagclicksave = false;
+  function jsSaveState () {
+    var strAnswerSave = window.frames[0].getAnswer(); // same function the iLM already exposes for submission
+    if (strAnswerSave == null || strAnswerSave == '' || strAnswerSave == -1) {
+      alert('" . get_string('activity_empty', 'iassign') . "');
+      return false;
+      }
+    window.flagclicksave = true;
+    document.getElementById('spinner-loading-save').style.visibility = 'visible';
+    var formData = new FormData();
+    formData.append('iLM_PARAM_ArchiveContent', strAnswerSave);
+    formData.append('iLM_ajax', 1);
+    var request = new XMLHttpRequest();
+    request.open('POST', '" . $enderecoPOST_save . "');
+    request.onload = function (e) {
+      if (!window.flagclicksave) return;
+      window.flagclicksave = false;
+      document.getElementById('spinner-loading-save').style.visibility = 'hidden';
+      if (request.readyState === 4 && request.status === 200 && request.responseText.trim() === 'OK') {
+        document.getElementById('check-message-success-save').style.visibility = 'visible';
+        setTimeout(function(){
+          document.getElementById('check-message-success-save').style.visibility = 'hidden';
+        }, 3000);
+      } else {
+        document.getElementById('error-message-save').style.visibility = 'visible';
+        setTimeout(function(){
+          document.getElementById('error-message-save').style.visibility = 'hidden';
+        }, 3000);
+        }
+      };
+    request.send(formData);
+    return true;
     }
   //]]>
 </script>\n";
@@ -515,6 +556,20 @@ class html5 implements ilm_handle {
           " style='position: absolute; color: red; font-size: 2.0rem; margin-left: 1rem; visibility: hidden;'><span style='font-size: 1.0rem;'>" .
           get_string('error_insert_submissions', 'iassign') . "</span></i>\n" . " <div class='spinner-border' style='position: absolute; margin-left: 1rem; visibility: hidden;' " .
           " id='spinner-loading' role='status'><span class='sr-only'>Loading...</span>\n  </div> </center>\n";
+
+        // "Save current state" button: only for iLM that support reloading an in-progress (not graded) answer - e.g. iVProg.
+        // {iassign_ilm}.editingbehavior==1 <=> iLM keeps working over a solution sent by the student (iGeom does not; iVProg does)
+        if ($ilm->editingbehavior == 1) {
+          $iassign .= "<center>\n" .
+            " <button class='btn btn-secondary' type=button value='" . get_string('save_state_iassign', 'iassign') . "' " .
+            " onClick = 'window.jsSaveState();' title='" . get_string('message_save_state_iassign', 'iassign') . "'>" .
+            get_string('save_state_iassign', 'iassign') . "</button> <i id='check-message-success-save' class='fa fa-check' aria-hidden='true' " .
+            " style='position: absolute; color: green; font-size: 2.0rem; margin-left: 1rem; visibility: hidden;'><span style='font-size: 1.0rem;'>" .
+            get_string('state_saved_iassign', 'iassign') . "</span></i><i id='error-message-save' class='fa fa-times' aria-hidden='true' " .
+            " style='position: absolute; color: red; font-size: 2.0rem; margin-left: 1rem; visibility: hidden;'><span style='font-size: 1.0rem;'>" .
+            get_string('error_insert_submissions', 'iassign') . "</span></i>\n" . " <div class='spinner-border' style='position: absolute; margin-left: 1rem; visibility: hidden;' " .
+            " id='spinner-loading-save' role='status'><span class='sr-only'>Loading...</span>\n  </div> </center>\n";
+          }
         }
       } // if (!isguestuser() && $iassign_statement_activity_item->type_iassign != 1 && $allow_submit_button == 1)
 
@@ -790,6 +845,7 @@ class html5 implements ilm_handle {
   //  @param type $dir
   //  @return type
   static function list_directory ($dir) {
+    $ds = DIRECTORY_SEPARATOR; // to use short name of directory separator (on Linux is "/")
     $files = array();
     $cont = 0;
     $ffs = scandir($dir);
@@ -799,10 +855,10 @@ class html5 implements ilm_handle {
       return;
       }
     foreach ($ffs as $ff) {
-      $files[$cont] = $dir . "/" . $ff;
+      $files[$cont] = $dir . $ds . $ff;
       $cont++;
-      if (is_dir($dir . '/' . $ff)) {
-        $temp = self::list_directory($dir . '/' . $ff);
+      if (is_dir($dir . $ds . $ff)) {
+        $temp = self::list_directory($dir . $ds . $ff);
         foreach ($temp as $t) {
             $files[$cont] = $t;
             $cont++;
@@ -820,6 +876,7 @@ class html5 implements ilm_handle {
   public static function delete_ilm ($ilm_id) {
     global $DB, $CFG, $OUTPUT;
 echo "ilm_handlers/html5.php!delete_ilm(.): remove www do " . $ilm_id. "<br/>\n"; //2025/04/11 leo
+    $ds = DIRECTORY_SEPARATOR; // to use short name of directory separator (on Linux is "/")
 
     $iassign_ilm = $DB->get_record('iassign_ilm', array('id' => $ilm_id));
     //D echo "ilm_handlers/html5.php!delete_ilm(.): ilm_id=" . $ilm_id . ", file_jar=" . $iassign_ilm->file_jar . "<br/>\n"; //exit; //2025/04/11 leo
@@ -827,15 +884,15 @@ echo "ilm_handlers/html5.php!delete_ilm(.): remove www do " . $ilm_id. "<br/>\n"
     if (!file_exists($iassign_ilm->file_jar)) {
       //D echo "ilm_handlers/html5.php!delete_ilm(.): " . $iassign_ilm->file_jar . " nao existe, tenta completar<br/>\n"; //exit; //2025/04/11 leo
       // iLM directory under which the new version will be created
-      $ilm_base_directory = "ilm/" . $iassign_ilm->name; // ./mod/iassign/ilm/<iLM name>
-      $ilm_directory_version = $ilm_base_directory . "/" . $iassign_ilm->version; // ./mod/iassign/ilm/<iLM name>/<iLM version>
+      $ilm_base_directory = "ilm" . $ds . $iassign_ilm->name; // ./mod/iassign/ilm/<iLM name>
+      $ilm_directory_version = $ilm_base_directory . $ds . $iassign_ilm->version; // ./mod/iassign/ilm/<iLM name>/<iLM version>
       $iassign_ilm->file_jar = $ilm_directory_version;
       //D 
 echo "ilm_handlers/html5.php!delete_ilm(.): completado para:  " . $iassign_ilm->file_jar . "<br/>\n"; //exit; //2025/04/11 leo
       }
 
     // Prepare the path of directory to be removed
-    $path_w = rtrim($iassign_ilm->file_jar, "/"); // remove white space and "/" from the end of the string
+    $path_w = rtrim($iassign_ilm->file_jar, $ds); // remove white space and "/" from the end of the string
     $folder_to_remove = $path_w; // substr($path_w, 0, strrpos($path_w, '/') + 1); - ja tinha removido "/" final, com "rtrim(.)"
 echo "ilm_handlers/html5.php!delete_ilm(.): path_w="; print_r($path_w); echo "<br/> - folder_to_remove=" . $folder_to_remove . "<br/>\n"; //exit; //2025/04/11 leo
       // ilm_handlers/html5.php!delete_ilm(.): path_w=ilm/iHanoi/1.0.20240815
@@ -849,7 +906,7 @@ echo "ilm_handlers/html5.php!delete_ilm(.): path_w="; print_r($path_w); echo "<b
 
     self::delete_dir("www", $folder_to_remove); // from WWW of Moodle
 
-    $ilm_folder = "ilm/" . $iassign_ilm->name . "/";
+    $ilm_folder = "ilm" . $ds . $iassign_ilm->name . $ds;
     $k = 0;
 
     // Verify if iLM parent directory is empty, if yes, remove it
@@ -878,6 +935,7 @@ else echo "ilm_handlers/html5.php!delete_ilm(.): else k==0, ilm_id=" . $ilm_id .
   //  @calledby locallib.php: static function edit_ilm($param,$itemid): $typec::edit_ilm($param,$itemid,$files_extract,$contextuser);
   public static function edit_ilm ($param, $itemid, $files_extract, $contextuser) {
     global $DB, $CFG;
+    $ds = DIRECTORY_SEPARATOR; // to use short name of directory separator (on Linux is "/")
 
     $iassign_ilm = new stdClass();
     $iassign_ilm->name = $param->name;
@@ -894,7 +952,7 @@ else echo "ilm_handlers/html5.php!delete_ilm(.): else k==0, ilm_id=" . $ilm_id .
       if ($file_jar == null) {
         return false;
         }
-      $file_jar = str_replace("./", "", $file_jar) . "/";
+      $file_jar = str_replace("." . $ds, "", $file_jar) . $ds; // "./"
       }
     if (is_null($file_jar)) {
       // there is not definition to 'file_jar' in the IPZ packege, use eventually something entered by the form
@@ -1040,7 +1098,7 @@ else echo "ilm_handlers/html5.php!delete_ilm(.): else k==0, ilm_id=" . $ilm_id .
         $newentry->url = (String) $iassign_ilm_instance->url;
         $newentry->description = strip_tags($description_str);
         $newentry->extension = strtolower((String) $iassign_ilm_instance->extension);
-        $newentry->file_jar = $file_jar . "/";
+        $newentry->file_jar = $file_jar . "/"; //DEBUG need to use DIRECTORY_SEPARATOR (instead "/")?  
         $newentry->file_class = (String) $iassign_ilm_instance->file_class;
         $newentry->width = (String) $iassign_ilm_instance->width;
         $newentry->height = (String) $iassign_ilm_instance->height;
@@ -1109,6 +1167,7 @@ else echo "ilm_handlers/html5.php!delete_ilm(.): else k==0, ilm_id=" . $ilm_id .
   //  @calledby locallib.php!import_ilm($itemid)
   public static function import_ilm ($itemid, $files_extract, $application_xml, $contextuser, $fs) {
     global $DB, $CFG, $USER, $OUTPUT;
+    $ds = DIRECTORY_SEPARATOR; // to use short name of directory separator (on Linux is "/")
 
     $description_str = str_replace(array('<description>', '</description>'), array('', ''), $application_xml->description->asXML());
     //D- echo "html5.php!import_ilm(...): application_xml=|"; print_r($application_xml); echo "|<br/>\n"; //exit;
@@ -1119,11 +1178,11 @@ else echo "ilm_handlers/html5.php!delete_ilm(.): else k==0, ilm_id=" . $ilm_id .
     if ($iassign_ilm) { // There is (at least) one iLM with this 'name' and this 'version'
       foreach ($files_extract as $key0 => $value0) {
         //D- echo " self::delete_dir - " . $key0 . " , " . $value0. "<br/>\n";
-        $rootfolder = $CFG->dataroot . '/temp/' . $key0;
+        $rootfolder = $CFG->dataroot . $ds . 'temp' . $ds . $key0;
         self::delete_dir("data", $rootfolder); // from Moodle data
         break;
         }
-      unlink($CFG->dataroot . '/temp/' . "ilm-application.xml"); // also remove the "ilm-application.xml" file
+      unlink($CFG->dataroot . $ds . 'temp' . $ds . "ilm-application.xml"); // also remove the "ilm-application.xml" file
       print($OUTPUT->notification(get_string('error_import_ilm_version', 'iassign'), 'notifyproblem'));
       }
     else {
@@ -1141,7 +1200,7 @@ echo "dir_and_file_jar : ilm_final_directory="; print_r($ilm_final_directory); e
       if (!is_dir($file_jar)) { // If the admin does not includes "ilm/<iLM name>" add it to the $file_jar (since this path is necessary)
         // $items = explode("/", $ilm_final_directory); // get [<iLM name>, <iLM version>]
         // $iLMname = $items[0];
-	$file_jar = "ilm" . DIRECTORY_SEPARATOR . $ilm_final_directory . DIRECTORY_SEPARATOR . $file_jar;
+	$file_jar = "ilm" . $ds . $ilm_final_directory . $ds . $file_jar;
 echo " - completado file_jar=" . $file_jar. "<br/>\n"; //2025/04/11 leo
         }
 // ilm_final_directory=iHanoi/1.0.20240815, file_jar=ihanoi/
@@ -1228,8 +1287,7 @@ echo " - completado file_jar=" . $file_jar. "<br/>\n"; //2025/04/11 leo
   //  @return string with the iLM path (since ./ilm/...)
   static function save_ilm_by_xml ($str_from, $application_xml, $files_extract) {
     global $CFG, $USER, $OUTPUT;
-
-    $ds = DIRECTORY_SEPARATOR; // to short name
+    $ds = DIRECTORY_SEPARATOR; // to short name (to directory separator, on Linux "/")
     $source = "";
     $temp_directory = "";
 
@@ -1350,6 +1408,10 @@ echo " - completado file_jar=" . $file_jar. "<br/>\n"; //2025/04/11 leo
         }
       } // foreach
     if ($error>0) {
+      if ($CFG->debugdisplay) { // debug messages is turned on
+        print "ilm_handlers/html5.php!save_ilm_by_xml(.): Error more files at the root level?<br/> - actual_file_jar=" . $actual_file_jar . ", second_file_jar=" . $second_file_jar . "<br/>temp_dir=\n"; //DEBUG
+        print_r($temp_dir); print "<br/>";
+        }
       $param = new stdClass(); $param->dir1 = $actual_file_jar; $param->dir2 = $second_file_jar;
       $msg1 = get_string('error_zip_ipz_single_directory', 'iassign'); // Error! The ZIP or IPZ package must have all of its files inside a single directory.
       $msg2 = get_string('error_zip_ipz_more_directories', 'iassign', $param); // Was found at least two sub-directories inside the package: "{$a}" and "{$b}"
@@ -1447,6 +1509,7 @@ echo " - completado file_jar=" . $file_jar. "<br/>\n"; //2025/04/11 leo
         print "ilm_handlers/html5.php!save_ilm_by_xml(.): " . $ilm_complete_path_base . " does not exist! Try to complete<br/>\n"; //DEBUG
         }
       $ilm_complete_path_base = $wwwpath . $ds . "/ilm/" . $application_file_name;
+      $ilm_complete_path_base = $wwwpath . $ds . "ilm" . $ds . $application_file_name; // use $ds to "/" on Linux or inverted barr in Win...
       if ($CFG->debugdisplay) { // debug messages is turned on
         print "ilm_handlers/html5.php!save_ilm_by_xml(.): completed path base=" . $ilm_complete_path_base . "<br/>\n"; //DEBUG
         }
@@ -1510,6 +1573,7 @@ echo " - completado file_jar=" . $file_jar. "<br/>\n"; //2025/04/11 leo
   //  @throws InvalidArgumentException
   public static function delete_dir ($www_or_data, $dirPath) {
     global $CFG;
+    $ds = DIRECTORY_SEPARATOR; // to short name (to directory separator, on Linux "/")
     var_dump(debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)); //2025/04/11 leo
     echo "ilm_handlers/html5.php!delete_dir(.): www_or_data=" . $www_or_data . ", original dirPath=" . $dirPath . "<br/>\n"; //2025/04/11 leo
     $dh = opendir($dirPath);
@@ -1531,7 +1595,7 @@ echo " - completado file_jar=" . $file_jar. "<br/>\n"; //2025/04/11 leo
     while (($file_name = readdir($dh)) !== false) {
       if (!$file_name || $file_name == ".." || $file_name == ".")
         continue; // ignore empty or subdirectories
-      if ($dirPath[strlen($dirPath) - 1] != '/') // avoid appand when it already has final "/"
+      if ($dirPath[strlen($dirPath) - 1] != $ds) // avoid append when it already has final "/" (ou "\")
         $file_name = $dirPath . DIRECTORY_SEPARATOR . $file_name;
       else
         $file_name = $dirPath . $file_name;

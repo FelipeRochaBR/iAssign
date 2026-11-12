@@ -1,7 +1,6 @@
 <?php
 
 /*
-
  * Any Moodle activity is directly associated of a Moodle instance activity through {course_modules}.
  * 
  * iAssign is no directly associated of a Moodle instance activity, since it is a block of activities,
@@ -1174,15 +1173,15 @@ function get_files ($course_id, $ilm_id, $DB) { //2022
 // Codigo de teste tinha inserido em 'locallib.php' (era invocado linha 2458/9172): static function test_iassign_statement_files()
 // @calledby locallib.php : add_edit_iassign(.)
 function see_all_files_context ($course_id, $DB) { //2022 testar 'restore_iassign_stepslib.php()' - remover!
-// See mod/iassign/backup/moodle2/restore_iassign_stepslib.php : after_execute()
-// /var/www/html/moo391p/mod/iassign/backup/moodle2/restore_iassign_stepslib.php
+  // See mod/iassign/backup/moodle2/restore_iassign_stepslib.php : after_execute()
+  // /var/www/html/moo391p/mod/iassign/backup/moodle2/restore_iassign_stepslib.php
   //global $CFG, $DB, $USER;
   //$fs = get_file_storage();
 
-$context_id = 1;
-// $context = context_module::instance($USER->cm); //2022/02: get 'context.id' = 'files.contextid'
-echo "files_functions.php: context.id=" . $context_id . "<br/>\n";
-$countF = 0;
+  $context_id = 1;
+  // $context = context_module::instance($USER->cm); //2022/02: get 'context.id' = 'files.contextid'
+  echo "files_functions.php: context.id=" . $context_id . "<br/>\n"; //D
+  $countF = 0;
 
   // Get all iLM installed in iAssign
   $list_all_iassign_ilm = $DB->get_records('iassign_ilm', array('parent' => 0, 'enable' => 1));
@@ -1197,8 +1196,9 @@ $countF = 0;
   foreach ($answer_list_iassign as $iassign) { // get all context of this iAssign block $iassign
     $list_all_instances_of_iassign[] = $iassign;
     $str_query = "SELECT {course}.id, {course}.shortname, {context}.id AS contextid FROM {course}, {context}, {course_modules} WHERE " .
-               "{course}.id={course_modules}.course AND {course_modules}.id={context}.instanceid AND {course_modules}.course=" . $course_id . " AND {course_modules}.instance=" . $iassign->id;
-//echo "query=" . $str_query . "<br/>";
+                 "{course}.id={course_modules}.course AND {course_modules}.id={context}.instanceid AND {course_modules}.course=" . $course_id .
+                 " AND {course_modules}.instance=" . $iassign->id;
+    //echo "query=" . $str_query . "<br/>";
     $answer_list = $DB->get_records_sql($str_query); // get array of stdClass (must be only one element)
     $list1 = array();
     $strAux = "";
@@ -1212,10 +1212,10 @@ $countF = 0;
     $iassign = $list_all_instances_of_iassign[$ii];
     $list_all_iassign_statement = $DB->get_records('iassign_statement', array('iassignid' => $iassign->id)); // get all activities inside this block
     $contextid = $all_context[$ii]->contextid; // context of this 'iassign.id'
-//D echo  "#list_all_iassign_statement = " . count($list_all_iassign_statement) . " de iassign.id=" . $iassign->id . "<br/>\n"; //D2022
+    //D echo  "#list_all_iassign_statement = " . count($list_all_iassign_statement) . " de iassign.id=" . $iassign->id . "<br/>\n"; //D2022
     foreach ($list_all_iassign_statement as $iassign_statement) { // get all iAssign activity inside the block '$list_all_iassign_statement'
-//D echo  " - iassign_statement {id = " . $iassign_statement->id . ", file = " . $iassign_statement->file . ", filesid = " . $iassign_statement->filesid .
-//D "}; contextid=" . $contextid . ", date(timecreated)=" . date("Y/m/d H:i:s", $iassign_statement->timecreated) . " : " . $iassign_statement->name . "<br/>\n"; //D2022
+      //D echo  " - iassign_statement {id = " . $iassign_statement->id . ", file = " . $iassign_statement->file . ", filesid = " . $iassign_statement->filesid .
+      //D "}; contextid=" . $contextid . ", date(timecreated)=" . date("Y/m/d H:i:s", $iassign_statement->timecreated) . " : " . $iassign_statement->name . "<br/>\n"; //D2022
       // To avoid programming mistake on old version try to get 'files' with 'iassign_statement.id', 'iassign_statement.file' and 'iassign_statement.filesid'
       $files = $DB->get_records('files', array('contextid' => $contextid, 'component' => 'mod_iassign', 'filearea' => 'exercise', 'itemid' => $iassign_statement->id)); // all 'files' associated
       $numf = count($files); $countF += $numf; $msgO = "iassign_statement.id"; //D
@@ -1239,19 +1239,22 @@ $countF = 0;
       if ($numf > 0) { echo  " &nbsp; * files: " . $numf . ": " . $msgO . "<br/>\n"; //D
         $filename = array();
         foreach ($files as $element_file) { // analyse each '$element_file' of 'files'
-echo  " &nbsp; * files: id = " . $element_file->id . ", contextid = " . $element_file->contextid . ", itemid=" . $element_file->itemid . " : " . $element_file->filename . "<br/>\n"; //D
+          echo  " &nbsp; * files: id = " . $element_file->id . ", contextid = " . $element_file->contextid .
+                ", itemid=" . $element_file->itemid . " : " . $element_file->filename . "<br/>\n"; //D
           if ($element_file->filename != '.') { // get the '$element_file' that is not only "path"
             $filename = explode(".", $element_file->filename);
             if ($iassign_statement->filesid != $element_file->id) { // need to update 'iassign_statement.filesid'?
-              echo " &nbsp; &nbsp; &nbsp; &nbsp; Update 'iassign_statement.filesid'=" . $iassign_statement->filesid . " <- " . $element_file->id . " : " . $element_file->filename . "<br/>"; //2022
+              echo " &nbsp; &nbsp; &nbsp; &nbsp; Update 'iassign_statement.filesid'=" . $iassign_statement->filesid .
+                   " <- " . $element_file->id . " : " . $element_file->filename . "<br/>"; //2022
               $iassign_statement->filesid = $element_file->id; // 'iassign_statement.filesid' <- 'files.id' (update bellow) //2022
               }
             }
           if ($element_file->itemid != $iassign_statement->id) { // need to update 'files.itemid'? ('files.itemid <- iassign_statement.id') //2022
-//++ Deixar para outro corrigir! A partir de 'settings_activities.php'
+            //++ Deixar para outro corrigir! A partir de 'settings_activities.php'
             $newentry_be_updated = new stdClass(); $newentry_be_updated->id = $element_file->id; $newentry_be_updated->itemid = $iassign_statement->id;
-            echo " &nbsp; &nbsp; &nbsp; &nbsp; Update 'files.itemid': id=" . $newentry_be_updated->id . ", itemid=" . $element_file->itemid . "<-" . $newentry_be_updated->itemid . " : " . $element_file->filename . "<br/>"; //2022
-//R              if (!$DB->update_record('files', $newentry_be_updated)) print_error('error_update', 'iassign');
+            echo " &nbsp; &nbsp; &nbsp; &nbsp; Update 'files.itemid': id=" . $newentry_be_updated->id . ", itemid=" .
+                 $element_file->itemid . "<-" . $newentry_be_updated->itemid . " : " . $element_file->filename . "<br/>"; //2022
+            //R if (!$DB->update_record('files', $newentry_be_updated)) print_error('error_update', 'iassign');
             }
           } // foreach ($files as $element_file)
         $extension = ""; // extension of the current '$element_file'
@@ -1263,22 +1266,26 @@ echo  " &nbsp; * files: id = " . $element_file->id . ", contextid = " . $element
             echo " &nbsp; &nbsp; &nbsp; &nbsp; Update 'iassign_statement.iassign_ilmid': " . $iassign_statement->iassign_ilmid . " <- " . $iassign_ilm->id . "<br/>\n"; 
             }
           }
-//R          $DB->update_record("iassign_statement", $iassign_statement); // update 'iassign_statement' (mainly 'iassign_statement.filesid')
+          //R $DB->update_record("iassign_statement", $iassign_statement); // update 'iassign_statement' (mainly 'iassign_statement.filesid')
         } // if ($numf > 0)
       } // foreach ($list_all_iassign_statement as $iassign_statement)
     } // for ($ii=0; $ii<$sizeofList; $ii++)
-$timeWrite = date('Y_m_d_H_i_s'); // Year_Month_Day_Hour_Minutes_Seconds
-$filenamewrite = "_output_restore_after_execute_" . $timeWrite . ".txt";
 
-echo "restore_iassign_stepslib: " . $filenamewrite . "<br/>\nUsando: " . __DIR__ . "/../../ilm_debug/escreva.php" . "<br/>\n"; //D . str_replace("\n","<br>\n", $msgD) . "<br/>\n"; // __DIR__
+  try {
+    $timeWrite = date('Y_m_d_H_i_s'); // Year_Month_Day_Hour_Minutes_Seconds
+    $filenamewrite = "_output_restore_after_execute_" . $timeWrite . ".txt";
 
-// ./mod/iassign/ilm_debug/escreva.php: writeContent($filetype1, $pathbase, $outputFile, $msgToRegister)
-// ./mod/iassign/ilm_debug/saida_restore_after_execute.txt
-//D require_once(__DIR__ . "/../../ilm_debug/escreva.php"); //leo REMOVER! xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    echo "files_function.php!function see_all_files_context(.): " . $filenamewrite . "<br/>\nUsando: " . __DIR__ .
+         "/../../ilm_debug/escreva.php" . "<br/>\n"; //D . str_replace("\n","<br>\n", $msgD) . "<br/>\n"; // __DIR__
 
-//D Grvar em: ./mod/iassign/ilm_debug/output_restore_after_execute_2022_02_dd_hh_mm_ss.txt
-//D $resp = writeContent("", "", $filenamewrite, $msgD); // ($filetype1, $pathbase, $outputFile, $msgToRegister) //leo tire comentario para gravar
-
-echo "restore_iassign_stepslib: resp=" . $resp . ", #files=" . $countF . "<br/>\n";
+    // ./mod/iassign/ilm_debug/escreva.php: writeContent($filetype1, $pathbase, $outputFile, $msgToRegister)
+    // ./mod/iassign/ilm_debug/saida_restore_after_execute.txt
+    //D require_once(__DIR__ . "/../../ilm_debug/escreva.php"); //leo REMOVER!
+    //D Gravar em: ./mod/iassign/ilm_debug/output_restore_after_execute_2022_02_dd_hh_mm_ss.txt
+    //D $resp = writeContent("", "", $filenamewrite, $msgD); // ($filetype1, $pathbase, $outputFile, $msgToRegister) //leo tire comentario para gravar
+    echo " resp=" . $resp . ", #files=" . $countF . "<br/>\n";
+    } catch (Exception $e) {
+      print 'files_function.php!function see_all_files_context(.): catch exception: ' . $e->getMessage() . "<br/>\n";
+      }
 
   } // function see_all_files_context($course_id, $DB)

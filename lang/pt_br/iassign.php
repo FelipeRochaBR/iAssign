@@ -5,6 +5,7 @@
  * 
  * @author Patricia Alves Rodrigues
  * @author Leo^nidas de Oliveira Branda~o
+ * @contributor Felipe Pires Rocha
  * @version v 1.3.2 2022/09/15 (new tags associated to the fields 'evaluate,reevaluate,editingbehavior' of 'iassign_ilm')
  * @version v 1.3.1 2020/07/04 (reordered; adjusted 4 tags); v 1.3 2019/01/10 (480 tags); v 1.2 2017/03/10 ; v 1.1 2013/08/28
  * @package mod_iassign_lang
@@ -19,6 +20,7 @@
 $string['action']                         = 'Ação';
 $string['activities']                     = 'Atividades';
 $string['activities_page']                = 'Página de atividades';
+$string['activities_page_help']           = 'Opções gerenciais relacionadas com atividades do bloco';
 $string['activity']                       = 'Atividade';
 $string['activity_empty']                 = 'Atividade enviada sem conteúdo.';
 $string['activity_group']                 = 'Agrupar atividade por tipo?';
@@ -33,10 +35,12 @@ $string['add_ilm_iassign_help']           = 'Adicionar um novo <a href="https://
 $string['add_ilm_iassign_about_ilm']      = 'Um <a href="https://www.matematica.br/ia/#iLM" title="ver uma descrição mais completa" target="_blank">iLM</a> é qualquer sisstema educacional via Web';
 $string['add_param']                      = 'Adicionar novo parâmetro';
 $string['all_submissions_manager']        = 'Gerenciar todas as submissões';
+$string['all_submissions_manager_help']   = 'Página que permite gerenciar todos os envios de todos os estudantes, por atividade';
 $string['all_submissions_manager_confirm'] = 'Você tem certeza que deseja excluir?';
 $string['all_submissions_manager_date']   = 'Data';
 $string['all_submissions_manager_next']   = 'Próxima';
 $string['all_submissions_manager_previous'] = 'Anterior';
+
 $string['answer']                         = 'resposta';
 $string['applet']                         = 'Módulo de Aprendizagem (Applet)';
 $string['applet_blocked']                 = 'Não é possível exibir o iMA, pois seu navegador não permite a execução de Applets.';
@@ -69,6 +73,7 @@ $string['auto_evaluate_msg_t_empty_cases']= 'Casos de teste vazios. Clique no í
 $string['auto_evaluate_msg_t_fail']       = 'Falha na execução. Clique no ícone para detalhes.';
 $string['auto_evaluate_msg_time']         = 'Foi solicitado ao iMA que avaliasse o exercício do estudante, porém, o iMA não respondeu ao iTarefa. Isso pode indicar que o iMA não possui re-avaliador em lote. <br>Recarregue a página e tente novamente!';
 $string['auto_evaluate_name_config']      = 'Reavaliador automático';
+$string['auto_evaluate_name_config_help'] = 'Página para selecionar atividades (deste bloco) para serem reavaliadas';
 $string['auto_evaluate_ok']               = 'Envio e nota íntegros';
 
 $string['auto_evaluate_reprocess']        = 'Reavaliar automaticamente';
@@ -288,6 +293,9 @@ $string['experiment']                     = 'Número de tentativas:';
 $string['experiment_iassign']             = 'Limite de tentativas:';
 $string['experiment_student']             = 'Número de tentativas:';
 $string['export_csv']                     = 'Exportar (CSV)';
+$string['export_csv_help']                = 'Exportar um arquivo CSV com as notas de todas atividades de todos os alunos';
+$string['export_all_submissions']         = 'Exportar submissões';
+$string['export_all_submissions_help']    = 'Exportar um pacote ZIP com todas as submissões de todos os alunos para cada uma das iActividades';
 $string['export_ilm']                     = 'Exportar iMA';
 $string['extension']                      = 'Extensão';
 $string['extension_help']                 = 'Insira uma ou mais extensões permitidas pelo iMA. Para várias extensões separe por vírgula (,).';
@@ -338,6 +346,7 @@ $string['grade_max']                      = 'Nota máxima';
 $string['grade_student']                  = 'Nota do aluno';
 $string['grades']                         = 'Histório das avaliações';
 $string['graphic']                        = 'Gráficos';
+$string['graphic_help']                   = 'Opção para apresentar alguns gráficos relacionados com todas as submissões neste bloco de atividades';
 $string['group']                          = 'Grupo';
 $string['hbar_blue']                      = '';
 $string['hbar_blue_r']                    = '';
@@ -349,6 +358,7 @@ $string['hbar_red']                       = '';
 $string['hbar_red_r']                     = '';
 $string['height']                         = 'Altura';
 $string['help_ilm']                       = 'Sobre os iMA';
+$string['help_ilm_help']                  = 'Opção para mostrar um resumo de todos os iMA disponíveis no iTarefa';
 $string['helpactivitygroup']              = 'Agrupar atividade por tipo?';
 $string['helpactivitygroup_help']         = 'Se esta opção estiver ativa as atividades serão agrupadas por tipo, caso contrário, serão exibidas em uma único bloco organizadas pela ordem de cadastro.';
 $string['helpchoose_file']                = 'Arquivo do iMA';
@@ -361,6 +371,10 @@ $string['helpexperiment']                 = 'Número de tentativas';
 $string['helpexperiment_help']            = '<p>Define o número máximo de tentivas que o aluno pode realizar esta atividade.</p>';
 $string['helppreventlate']                = 'Permitir envio atrasado?';
 $string['helppreventlate_help']           = '<p>Se esta opção estiver ativa o aluno poderá enviar a solução da atividade mesmo depois do prazo de entrega ter encerrado.</p>';
+$string['helpgroup_submission']           = 'Envio em grupo';
+$string['helpgroup_submission_help']      = '<p>Se ativado, o envio feito por qualquer integrante de um grupo é compartilhado com todos os integrantes daquele grupo: a resposta, o status e a nota são copiados para cada integrante. Isso também vale para o botão "Salvar estado atual" (nos iMA que o suportam, como o iVProg): quando um integrante salva o que já fez, todos os colegas de equipe passam a retomar a partir desse mesmo estado, o mais recente. Os alunos precisam pertencer a um grupo do curso (restrito ao agrupamento desta atividade, se houver um definido).</p>';
+$string['group_submission_header']        = 'Envio em grupo';
+$string['group_submission']               = 'Compartilhar um envio por grupo';
 $string['helpspecial_param']              = 'Atividade com algoritmo';
 $string['helpspecial_param_help']         = '<p>Ative esta opção apenas se a atividade que está sendo inserida possuir o parâmetro de execução de algoritmo.</p>';
 $string['helptest']                       = 'Permitir teste após prazo?';
@@ -381,10 +395,12 @@ $string['iassign:deleteiassignnotnull']   = 'Excluir atividades não vazias';
 $string['iassign:deleteiassignnull']      = 'Excluir atividades vazias';
 $string['iassign:editiassign']            = 'Editar atividades';
 $string['iassign:evaluateiassign']        = 'Avaliar atividades';
+$string['iassign:runautoevaluate']        = 'Pode rodar opção de auto-avaliação para o módulo iTarefa';
 $string['iassign:submitiassign']          = 'Enviar atividades';
 $string['iassign:view']                   = 'Visualizar atividades';
 $string['iassign:viewiassignall']         = 'Visualizar todos os detalhes das atividades';
 $string['iassign:viewreport']             = 'Visualizar relatórios';
+
 
 $string['iassign_add']                    = 'Atividade adicionada com sucesso.';
 $string['iassign_cancel']                 = 'Alteração cancelada.';
@@ -450,6 +466,7 @@ $string['mean_score']                     = 'Média de acertos';
 $string['mean_score_title']               = 'A razão: número total de estudiantes com respostas corretas dividido pelo número de estudantes (M)';
 $string['message_dependency']             = 'Para realizar esta atividade é obrigatório que todas as atividades da qual esta depende tenha sido realizada e avaliada como correta';
 $string['message_no_update_iassign']      = 'Clique aqui para manter atividade';
+$string['message_save_state_iassign']     = 'Clique aqui para salvar o que você já fez, sem enviar para avaliação. Você pode continuar depois de onde parou.';
 $string['message_submit_iassign']         = 'Clique aqui para enviar sua resposta';
 $string['message_update_iassign']         = 'Clique aqui para substituir atividade';
 $string['messageprovider:message']        = 'Alerta de novas mensagens em atividades interativas';
@@ -505,6 +522,7 @@ $string['no_permission_iassign']          = 'Visitantes somente podem visualizar
 $string['not_post']                       = 'Não enviado';
 $string['not_submissions_activity']       = 'Não existem submissões relacionadas a esta atividade.';
 $string['notifications']                  = 'Notificações';
+$string['notifications_help']             = 'Página que permite visualizar todos os novos recados em atividades deste bloco';
 $string['null_file']                      = 'Nenhum arquivo foi enviado';
 $string['number_submissions']             = 'Número de submissões relacionadas a esta atividade:';
 $string['ok_import_ilm_version']          = 'O iMA foi importado com sucesso!';
@@ -526,6 +544,7 @@ $string['previous_student']               = 'Aluno anterior';
 $string['previous_student_activity']      = 'Atividade Anterior';
 $string['previous_timeavailable']         = 'Atividade indisponível: aguarde o prazo de abertura.';
 $string['print']                          = 'Imprimir';
+$string['print_help']                     = 'Apresentar uma página com formatação em texto puro para possibilitar copiar/colar';
 $string['print_report']                   = 'Relatório - versão para impressão';
 $string['proportion_correct']             = 'Proporção de acertos';
 $string['proposition']                    = 'Enunciado';
@@ -544,12 +563,15 @@ $string['repeat']                         = 'Refazer atividade';
 $string['repeat_alt']                     = 'Use este botão para refazer a atividade';
 $string['repeat_msg']                     = 'Se deseja recomeçar do início esta atividade, utilize o botão "Refazer". Atenção: você perderá o conteúdo anteriormente enviado!';
 $string['report']                         = 'Relatórios';
+$string['report_help']                    = 'Opção para apresentar um resumo de todos os envios de todos os estudantes para este bloco de atividades';
+$string['report_menu_help']               = 'Sub-opções de relatórios: todas as submissões; gráficos; iMA';
 $string['report_total_students']          = 'Total de estudentes na classe';
 $string['report_total_submissions']       = 'Total de submissões';
 $string['required']                       = 'É obrigatório o preenchimento deste campo';
 $string['required_file']                  = 'É obrigatório preencher o campo <u>Arquivo da atividade</u>';
 $string['required_iassign_file']          = 'É obrigatório selecionar uma atividade interativa';
 $string['results']                        = 'Resultados';
+$string['results_help']                   = 'Esta opção apresenta um resumo de seus resultados neste bloco de atividades';
 $string['return']                         = 'Retornar';
 $string['return_config_ilm']              = 'Retornar à página principal dos iMA';
 $string['return_home']                    = 'Retornar para página principal do curso';
@@ -557,11 +579,12 @@ $string['return_home_course']             = 'Retornar para página principal do 
 $string['return_iassign']                 = 'Retornar ao exercício';
 $string['right']                          = 'direita';
 $string['right_disable']                  = 'Desabilitado';
+$string['save_state_iassign']             = 'Salvar estado atual';
 $string['script']                         = 'Atividade com "script" (algoritmo)?<br>(Aplicável apenas ao iMA iGeom)';
 $string['see_ilm_activities']             = 'Ver todas as atividades associadas com este iMA';
 $string['select_move_ilm']                = 'Selecione a pasta para mover os arquivos e pastas:';
 $string['settings_see_activities']        = 'Ver todas as actividades de iMA';
-$string['settings_see_activities_help']   = 'Para cada corso, buscar todas as actividades de iMA (considerando todos os iMA instalados)';
+$string['settings_see_activities_help']   = 'Para cada curso, buscar todas as actividades de iMA (considerando todos os iMA instalados)';
 $string['show']                           = 'Mostrar';
 $string['show_answer']                    = 'Mostrar resultado da avaliação automática aos alunos?';
 $string['show_iassign']                   = 'Exibir atividade';
@@ -572,6 +595,7 @@ $string['solution']                       = 'Solução enviada pelo aluno';
 $string['special_param']                  = 'Atividade com script (algoritmo)?<br>(Aplicável apenas ao iMA iGeom)';
 $string['standard_deviation']             = 'Desvio padrão';
 $string['standard_deviation_title']       = 'Desvio padrão (populacional): raíz quadrada de PV';
+$string['state_saved_iassign']            = 'Progresso salvo!';
 $string['statistics']                     = 'Dados estatísticos';
 $string['status']                         = 'Situação:';
 $string['store_all_submissions']          = 'Armazenar todas as submissões? <br> (Aplicável aos iMA compatíveis)';

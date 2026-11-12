@@ -325,6 +325,7 @@ document.body.className += ' jsenabled';
     }
 
     function start_evaluation () {
+
       stoped = false;
       $("#progress_bar").css("display", "none");
       $("#evaluate_message").text("");
@@ -482,10 +483,10 @@ document.body.className += ' jsenabled';
               var tag1 = '<i data-toggle="modal" class="details-button" data-target="#exampleModalCenter">' +
                          '<i class="fa fa-times-circle-o fa-6" aria-hidden="true" style="color: #ef5151; font-size: 2em; cursor: pointer;" ' +
                          'data-toggle="tooltip" ';
-              $("#"+id_t).html(tag1 + ' data-original-title="' + var_auto_evaluate_msg_t_empty_cases + '"</i></i>');
+              $("#"+id_t).html(tag1 + ' data-original-title="' + var_auto_evaluate_msg_t_empty_cases + '"</i></i>"');
               var mm = actual_exercise;
               $("#"+id_t).find(".details-button").click(function(e) {
-                var var_auto_evaluate_msg_t_empty_cases = Casos de teste vazios. Clique no ícone para detalhes.;
+                var var_auto_evaluate_msg_t_empty_cases = "Casos de teste vazios. Clique no ícone para detalhes.";
                 $(".modal-body").html('<table class="table"><tr><td style="width: 30%;">Exercício:</td><td>' + 
                   $("#label_ex_"+selected_exercises[mm]).text() + '</td></tr><tr><td style="width: 30%;">Estudante:</td><td>' +
                   $(this).closest("tr").find(".student-name").text() + '</td></tr><tr><td style="width: 30%;" colspan="2"><b>Resultado da avaliação automática:</b><br>' + var_auto_evaluate_msg_t_empty_cases + '</td></tr></table>');
@@ -497,7 +498,7 @@ document.body.className += ' jsenabled';
               var tag2 = '<i data-toggle="modal" class="details-button" data-target="#exampleModalCenter">' +
                          '<i class="fa fa-times-circle-o fa-6" aria-hidden="true" style="color: #ef5151; font-size: 2em; cursor: pointer;" ' +
                          'data-toggle="tooltip" data-original-title="Casos de teste diferentes. Clique no ícone para detalhes."></i></i>';
-              $("#"+id_t).html(' + tag2 ');
+              $("#"+id_t).html(tag2);
               var mm = actual_exercise;
               $("#"+id_t).find(".details-button").click(function(e) {
                 var tag3 = '<table class="table"><tr><td style="width: 30%;">Exercício:</td><td>' +
@@ -518,11 +519,11 @@ document.body.className += ' jsenabled';
               // var_auto_evaluate_msg_t_fail = var_auto_evaluate_msg_t_fail.replace(/'/g, "\'");
               var tag4 = '<i data-toggle="modal" class="details-button" data-target="#exampleModalCenter">' +
                          '<i class="fa fa-times-circle-o fa-6" aria-hidden="true" style="color: #ef5151; font-size: 2em; cursor: pointer;" ' +
-                         ' data-toggle="tooltip" data-original-title="' + var_auto_evaluate_msg_t_fail . '"></i></i>';
-              $("#"+id_t).html('+ tag4 + ');
+                         ' data-toggle="tooltip" data-original-title="' + var_auto_evaluate_msg_t_fail + '"></i></i>';
+              $("#"+id_t).html(tag4);
               var mm = actual_exercise;
               $("#"+id_t).find(".details-button").click(function(e) {
-                var var_auto_evaluate_msg_fail = Ao tentar executar a avaliação da atividade, o iMA reportou uma falha.<br>Recarregue a página e tente novamente.;
+                var var_auto_evaluate_msg_fail = "Ao tentar executar a avaliação da atividade, o iMA reportou uma falha.<br>Recarregue a página e tente novamente.";
                 $(".modal-body").html('<table class="table"><tr><td style="width: 30%;">Exercício:</td><td>' + $("#label_ex_"+selected_exercises[mm]).text() + '</td></tr><tr><td style="width: 30%;">Estudante:</td><td>' + $(this).closest("tr").find(".student-name").text() +
                   '</td></tr><tr><td style="width: 30%;" colspan="2"><b>Resultado da avaliação automática:</b><br>' + var_auto_evaluate_msg_fail + '</td></tr></table>');
                 });
@@ -533,7 +534,7 @@ document.body.className += ' jsenabled';
                    '<i class="fa fa-clock-o fa-6" aria-hidden="true" style="color: orange; font-size: 2em; cursor: pointer;" ' +
                    'data-toggle="tooltip" data-original-title="O iMA não respondeu. Clique no ícone para detalhes."></i></i>');
                 $("#"+id_t).find(".details-button").click(function(e) {
-                  var var_auto_evaluate_msg_time = Foi solicitado ao iMA que avaliasse o exercício do estudante, porém, o iMA não respondeu ao iTarefa. Isso pode indicar que o iMA não possui re-avaliador em lote. <br>Recarregue a página e tente novamente!;
+                  var var_auto_evaluate_msg_time = "Foi solicitado ao iMA que avaliasse o exercício do estudante, porém, o iMA não respondeu ao iTarefa. Isso pode indicar que o iMA não possui re-avaliador em lote. <br>Recarregue a página e tente novamente!";
                   $(".modal-body").html('<table class="table"><tr><td style="width: 30%;">' + var_auto_evaluate_msg_time + '</td></tr></table>');
                 });
                 break;
@@ -546,7 +547,7 @@ document.body.className += ' jsenabled';
             var var_auto_evaluate_ok = "Envio e nota íntegros";
             $("#"+id_t).html('<i class="fa fa-check-circle-o text-success" aria-hidden="true" style="font-size: 2em;" data-toggle="tooltip" data-original-title="' + var_auto_evaluate_ok + '"></i>');
           } else { // Grades are differents (possible fraud):
-            var var_auto_evaluate_different_grades = A nota registrada anteriormente difere da avaliação atual. Clique no ícone para mais detalhes.;
+            var var_auto_evaluate_different_grades = "A nota registrada anteriormente difere da avaliação atual. Clique no ícone para mais detalhes.";
             $("#" + id_t).html('<i data-toggle="modal" class="details-button" data-target="#exampleModalCenter"><i class="fa fa-exclamation-circle text-warning" aria-hidden="true" style="font-size: 2em; cursor: pointer;" data-toggle="tooltip" data-original-title="' + var_auto_evaluate_different_grades + '"></i></i>');
             var mm = actual_exercise;
             $("#"+id_t).find(".details-button").click(function(e) {

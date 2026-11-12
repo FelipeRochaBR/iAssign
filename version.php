@@ -39,6 +39,7 @@
  * @author Patricia Alves Rodrigues <<patricnet@ig.com.br>>
  * @author Leo^nidas de Oliveira Branda~o  <<leo@ime.usp.br>>
  * @author Igor Moreira Fe'lix <<igormf@ime.usp.br>>
+ * @author Felipe Pires Rocha <<felipepiresrocha@ime.usp.br>>
  *
  * <b>Contributors</b>
  *  - Marcelo de Arce Alemany <<marcelo.alemany@gmail.com>>
@@ -50,7 +51,8 @@
  *   + Filter files in view of select iLM files (Block and Module).
  *   + Changes for implement iLM version.
  *   + Change file for Moodle filesystem (MoodleData).
- *
+ * @version v 3.0.14  2026/09/18
+ * @version v 3.0.12  2026/08/29
  * @version v 3.0.12  2023/09/18
  * @version v 3.0.11  2023/07/07
  * @version v 3.0.10  2023/04/10
@@ -72,9 +74,9 @@
  * The plugin version is stored in Moodle tables {modules} and {config_plugins} with
  * {modules}.name = "iassign",
  * {config_plugins}.plugin = "mod_iassign" and {config_plugins}.value with the $plugin->version
- * 
  * @author Patricia Alves Rodrigues
  * @author Leo^nidas de Oliveira Branda~o
+ * @contributor Felipe Pires Rocha
  * @author Igor Moreira Fe'lix
  * @version v 2.8.1 2021/12/23 (2021122300)
  * @package mod_iassign_version
@@ -88,6 +90,9 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+// v 3.0.15 2026/09/28 (3.0.15 2026092800) asynchronous "save current state" button: student can save in-progress work and resume later
+// v 3.0.14 2026/09/18 (3.0.14 2026091800) register iQuestion iLM (multiple-choice question) in {iassign_ilm}
+// v 3.0.13 2026/08/26 (3.0.13 2026082900) group submission: one submission shared by all members of the student's group
 // v 3.0.12 2023/09/19 (3.0.12 2023091800) fixed student visualization of passed activity and importation of new iLM
 // v 3.0.11 2023/07/07 (3.0.11 2023070700) new iVProg 1.0.20230504 and iHanoi 1.0.20230526
 // v 3.0.10 2023/04/10 (3.0.10 2023041000) unified {iassign_statement}/{files} association
@@ -101,8 +106,8 @@ defined('MOODLE_INTERNAL') || die();
 // v 1.0    2012/10/16
 
 $plugin->component = 'mod_iassign';  // Full name of the plugin (used for diagnostics)
-$plugin->release = '3.0.12 (Build: 2023091800)'; // Human-readable version name
-$plugin->version = 2023091800;       // The current module version (Date: YYYYMMDDXX)
+$plugin->release = '3.0.15 (Build: 2026092800)'; // Human-readable version name
+$plugin->version = 2026092800;       // The current module version (Date: YYYYMMDDXX)
 $plugin->requires = 2015111610;      // Requires this Moodle version since 3.0.0)
 $plugin->maturity = MATURITY_STABLE; // How stable the plugin is: MATURITY_ALPHA, MATURITY_BETA, MATURITY_RC, MATURITY_STABLE (Moodle 2.0 and above)
 $plugin->cron = 60;

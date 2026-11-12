@@ -114,6 +114,15 @@ function xmldb_iassign_install () {
         array('Risko', 'http://risko.pcc.usp.br/', '2.2.23', 'Java', '{"en":"Technical drawing with triangle and ruler","pt_br":"Desenho Geomẽtrico com esquadro"}',
               'rsk', 'ilm/Risko/2.2.23/Risko.jar', 'RiskoApplet.class', 800, 600,
               1, 0, 0, time(), $USER->id, time(),
+              1, 0, 1)),
+      array_combine( // iQuestion 1.0.0 - HTML5
+        array('name', 'url', 'version', 'type', 'description',
+              'extension', 'file_jar', 'file_class', 'width', 'height',
+              'enable', 'evaluate', 'reevaluate', 'timemodified', 'author', 'timecreated',
+              'editingbehavior', 'submissionbehavior', 'action_buttons'),
+        array('iQuestion', '', '1.0.0', 'HTML5', '{"en":"Interactive multiple-choice question","pt_br":"Pergunta interativa de múltipla escolha"}',
+              'json', 'ilm/iQuestion/', 'index.html', 700, 500,
+              1, 1, 1, time(), $USER->id, time(),
               1, 0, 1))
       );
 

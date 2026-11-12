@@ -5,18 +5,16 @@
 //
 // @calledby ./mod/iassign/backup/moodle2/restore_iassign_stepslib.php:
 
-// require_once("../../../config.php"); // Not necessary, since who loads this
-//                                         (/mod/iassign/backup/moodle2/restore_iassign_stepslib.php), already has "config.php"!
-// require_once("/var/www/html/sm/config.php");
-// require_once("/var/www/producao/moodle/config.php"); // para Producao - ver /home/leo/projetos/iMA/lms/itarefa/novo/sobre_restauracao.txt
-require_once("/var/www/html/saw_limpo/config.php"); //paprika3 - REMOVER!!!!
+// require_once dirname(__FILE__); // /var/www/html/moodle
+// require_once(realpath(dirname(__FILE__)); //
 
-// Apelei
-// # mkdir /var/www/producao/saw.atp.usp.br/mod/iassign/ilm_debug/
-// # chown www-data.www-data /var/www/producao/saw.atp.usp.br/mod/iassign/
-// # mkdir /var/www/producao//saw.atp.usp.br/mod/iassign/ilm_debug/
-// # chown www-data.www-data /var/www/producao//saw.atp.usp.br/mod/iassign/
-// # chmod a+w /var/www/producao/moodle//saw.atp.usp.br/mod/iassign/ilm_debug/
+// Moodle 4.x : /var/www/html/moodle/mod/iassign
+// Moodle 5.0 : /var/www/html/moodle/mod/iassign
+// Moodle 5.1 : /var/www/html/moodle/public/mod/iassign
+
+//CAUTION: Since on Moodle 5 iAssing is under /var/www/html/moodle/public/mod, need to use "../../../../config.php"
+require_once("../../../config.php"); // Not necessary, since who loads this
+//                                         (/mod/iassign/backup/moodle2/restore_iassign_stepslib.php), already has "config.php"!
 
 // Teste paprika3:
 // require_once("/var/www/html/saw_limpo/config.php");
@@ -54,21 +52,18 @@ function get_moodle_name ($wwwroot) {
 function writeContent ($filetype1, $pathbase, $outputFile, $msgToRegister) {
   global $CFG, $GROUP, $WRITEMSG, $OVERWRITE;
 
-  // $pathbase = "/var/www/html/saw/mod/iassign/ilm_debug/"; // "/mod/iassign/ilm_debug/";
-  // $pathbase = "../../../mod/iassign/ilm_debug/"; // "/mod/iassign/ilm_debug/";
-  // Na                            paprika4                           homologacao
-  // _SERVER['DOCUMENT_ROOT']      /var/www/html                      /var/www/homologacao/moodle/
-  // CFG->wwwroot                  http://localhost/saw               https://homologacao.saw.atp.usp.br
-  // get_moodle_name(CFG->wwwroot) saw                                homologacao
-  // complete_outputFile           /var/www/html/saw/mod/iassign/...  /var/www/homologacao/moodle//homologacao/mod/iassign/...
-
-  $doc_root = $_SERVER['DOCUMENT_ROOT'];
-  if ($doc_root=="/var/www/html")
-    $pathbase = $doc_root . "/" . get_moodle_name($CFG->wwwroot) . "/mod/iassign/ilm_debug/"; // "/var/www/html/...(moodle).../mod/iassign/ilm_debug/";
+  $doc_root = $_SERVER['DOCUMENT_ROOT']; // Get absolut path only until HTML structure. Usually: /var/www/html
+  if ($doc_root=="/var/www/html" || $doc_root=="/var/www/html/") {
+    // Na Paprika3: doc_root=/var/www/html/
+    $doc_root = "/var/www/html"; // remove last "/" (if is the case)
+    $moodle_name = get_moodle_name($CFG->wwwroot);
+    echo "1: get_moodle_name(CFG->wwwroot)=" . $moodle_name . "<br/>\n";
+    if (!$moodle_name || $moodle_name=="html") $moodle_name = "saw_limpo"; // para Paprika3
+    $pathbase = $doc_root . "/" . $moodle_name . "/mod/iassign/ilm_debug/"; // "/var/www/html/...(moodle).../mod/iassign/ilm_debug/";
+    echo "2: pathbase=" . $pathbase . "<br/>\n";
+    }
   else // no 'homologacao.saw.atp.usp.br' ou 'saw.atp.usp.br'
     $pathbase = $doc_root . "mod/iassign/ilm_debug/"; // "/var/www/...(moodle).../mod/iassign/ilm_debug/";
-  // Na Paprika3:
-  $pathbase = $doc_root . "/" . get_moodle_name($CFG->wwwroot) . "/mod/iassign/ilm_debug/"; // "/var/www/html/...(moodle).../mod/iassign/ilm_debug/";
   $complete_outputFile = $pathbase . $outputFile;
   echo "escreva.php: doc_root=_SERVER['DOCUMENT_ROOT']=" . $_SERVER['DOCUMENT_ROOT'] . "<br/> &nbsp; pathbase = " . $pathbase . "<br/>\n"; //paprika3: /var/www/html
   //_ // CFG->wwwroot=http://localhost/saw_limpo
@@ -85,6 +80,7 @@ function writeContent ($filetype1, $pathbase, $outputFile, $msgToRegister) {
 
    // $result = writeContent("file", $pathbase, $filename, $msgToRegister);
    // print "escreva.php: result=$result<br/>";
+   //D echo "escreva.php: writeContent($filetype1, $pathbase, $outputFile, $msgToRegister): complete_outputFile = " . $complete_outputFile . "<br/>";
 
    // write personal email file
    // To write: verify if the file does not exists or have permission to overwrite
@@ -113,15 +109,38 @@ function writeContent ($filetype1, $pathbase, $outputFile, $msgToRegister) {
   return 1;
   } // function writeContent($outputFile, $msgToRegister)
 
+/*
 
 $date_aux = date('Y_m_d_H_i_s');
 //xxx $msgD = "Inicio: " . $date_aux . "\n";
-$msgD = "Inicio: " . $date_aux . "<br/>\n" . $msgD; //xxx
+$msgD = "Inicio: " . $date_aux . "<br/>\n"; //xxx
 // echo $msgD . "<br/>\n"; //xxx
 
 $timeWrite = $date_aux; // Year_Month_Day_Hour_Minutes_Seconds
 $filenamewrite = "output_restore_after_execute_" . $timeWrite . ".txt";
 echo "filenamewrite=" . $filenamewrite . "<br/>";
+//DEBUG path:
+  if (!isset($CFG->wwwroot)) { $CFG = new stdClass(); $CFG->wwwroot = "/var/www/html"; }
+  $outputFile = "";
+  $doc_root = $_SERVER['DOCUMENT_ROOT'];
+  echo "doc_root=" . $doc_root. "<br/>\n";
+  if ($doc_root=="/var/www/html" || $doc_root=="/var/www/html/") {
+    // Na Paprika3: doc_root=/var/www/html/
+    $doc_root = "/var/www/html"; // remove last "/" (if is the case)
+    $moodle_name = get_moodle_name($CFG->wwwroot);
+    echo "1: get_moodle_name(CFG->wwwroot)=" . $moodle_name . "<br/>\n";
+    if (!$moodle_name || $moodle_name=="html") $moodle_name = "saw_limpo"; // para Paprika3
+    $pathbase = $doc_root . "/" . $moodle_name . "/mod/iassign/ilm_debug/"; // "/var/www/html/...(moodle).../mod/iassign/ilm_debug/";
+    echo "2: pathbase=" . $pathbase . "<br/>\n";
+    }
+  else { // no 'homologacao.saw.atp.usp.br' ou 'saw.atp.usp.br'
+    $pathbase = $doc_root . "mod/iassign/ilm_debug/"; // "/var/www/...(moodle).../mod/iassign/ilm_debug/";
+    echo "3: pathbase=" . $pathbase . "<br/>\n";
+    }
+  echo "pathbase=" . $pathbase . "<br/>\n";
+  $complete_outputFile = $pathbase . $outputFile;
+  echo "complete_outputFile=" . $complete_outputFile . "<br/>\n";
+  echo "escreva.php: doc_root=_SERVER['DOCUMENT_ROOT']=" . $_SERVER['DOCUMENT_ROOT'] . "<br/> &nbsp; pathbase = " . $pathbase . "<br/>\n"; //paprika3: /var/www/html
 
 $resp = writeContent("", "", $filenamewrite, $msgD);
 // $resp2 = writeContent("", "", $filenamewrite, "Segunda escrita!\n" . $msgD);
@@ -129,5 +148,6 @@ $resp = writeContent("", "", $filenamewrite, $msgD);
 echo "Final " . $resp . "<br/>\n";
 // echo "Final " . $resp2 . "<br/>\n";
 
+*/
 
 ?>

@@ -1,0 +1,6 @@
+./mod/iassign/db/upgrade.php: oldversion=2026082900 upgrade in ./mod/iassign/ilm_debug/upgrade_AAAA_MM_DD_hh_mm_ss.txt
+ - Initial time: 2026_09_18_10_36_46
++ 2026082900 < 2026091800: register iQuestion in {iassign_ilm}
+  * insert_record('iassign_ilm', newentry,...): iQuestion
+ - Final time: 2026_09_18_10_36_46
+
