@@ -1,0 +1,27 @@
+/*
+ * iVProg - altura automática (junto com js/altura-automatica.js).
+ * O layout original ocupa 100% da altura do quadro (iframe) do iAssign, que é fixa e grande. Aqui as alturas
+ * passam a ser as do conteúdo; o script ajusta o quadro a elas, então a tela começa pequena e cresce conforme o
+ * programa aumenta. Para voltar ao comportamento original, remova os dois arquivos do index.html.
+ */
+
+html, body { height: auto !important; min-height: 0 !important; }
+.height_100 { height: auto !important; }
+
+.ui.raised.container.segment.div_to_body { height: auto !important; }
+
+.ivprog_visual_panel,
+.ui.segment.ivprog_visual_panel {
+  height: auto !important;
+  min-height: 200px;
+  overflow: visible !important;
+}
+
+.ivprog_textual_panel {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+/* Terminal: ao abrir, o iVProg aplica margin-top: -160px no terminal para ele "subir" por cima do programa (layout
+   de altura fixa). Com a altura automática ele deve abrir para baixo, e o quadro cresce para mostrá-lo. */
+#ivprog-term-div { margin-top: 0 !important; }

@@ -1,0 +1,158 @@
+/*
+ * iVProg - tema moderno (só visual).
+ * Carregado por último no index.html: sobrescreve cores, bordas e espaçamentos do Semantic UI e de
+ * ivprog-visual-1.0.css / ivprog-term.css, sem mudar nenhum comportamento.
+ * Para voltar ao visual original basta remover o <link> deste arquivo no index.html.
+ * Paleta igual à do iQuestion (mod/iassign/ilm/iQuestion/ilm_style.css).
+ */
+
+:root {
+  --iv-fundo: #f6f7fb;
+  --iv-cartao: #ffffff;
+  --iv-texto: #1f2430;
+  --iv-suave: #5b6275;
+  --iv-borda: #e3e6f3;
+  --iv-primaria: #4f46e5;
+  --iv-primaria-clara: #eef0ff;
+  --iv-controle: #6366f1;   /* se, enquanto, repita, escolha */
+  --iv-es: #f59e0b;         /* leia, escreva */
+  --iv-atrib: #14b8a6;      /* atribuição */
+  --iv-chamada: #0ea5e9;    /* chamada de função */
+  --iv-retorno: #e11d48;    /* retorne, pare */
+  --iv-comentario: #94a3b8;
+  --iv-codigo-fundo: #1e2233;
+  --iv-raio: 12px;
+  --iv-sombra: 0 1px 2px rgba(20, 24, 40, .06), 0 4px 16px rgba(20, 24, 40, .06);
+}
+
+body {
+  background: var(--iv-fundo) !important;
+  color: var(--iv-texto);
+}
+
+/* Moldura principal: cartão branco no lugar do fundo azul */
+.ui.raised.container.segment.div_to_body {
+  background: var(--iv-cartao);
+  border: none;
+  border-radius: 16px;
+  box-shadow: var(--iv-sombra);
+  padding: 12px 10px;
+}
+
+.main_title h2 {
+  color: var(--iv-primaria) !important;
+  opacity: 1 !important;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+
+/* Barra de ferramentas */
+.ui.icon.menu.center.aligned.container {
+  border: 1px solid var(--iv-borda);
+  border-radius: 12px;
+  box-shadow: var(--iv-sombra);
+  overflow: hidden;
+}
+.ui.icon.menu .item { color: var(--iv-texto); }
+.ui.icon.menu .item:hover { background: var(--iv-primaria-clara); color: var(--iv-primaria); }
+.ui.icon.menu .item.active { background: var(--iv-primaria-clara); color: var(--iv-primaria); }
+.ui.icon.menu .run_button { color: #15803d; }
+.ui.icon.menu .assessment_button { color: var(--iv-primaria); }
+
+/* Área do programa */
+.ui.segment.ivprog_visual_panel {
+  border: none;
+  box-shadow: none;
+  background: var(--iv-cartao);
+}
+
+.ui.segment.function_div {
+  background: var(--iv-primaria-clara);
+  border: 1px solid #dcdffb;
+  border-radius: var(--iv-raio);
+  box-shadow: none;
+  padding: 8px;
+}
+
+.ui.segment.variables_list_div,
+.ui.segment.commands_list_div {
+  background: #fbfbfe;
+  border: 1px solid var(--iv-borda);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+/* Blocos de comando: fundo branco, faixa colorida à esquerda indicando o tipo */
+.ui.comment, .ui.reader, .ui.writer, .ui.attribution, .ui.iftrue, .ui.repeatNtimes, .ui.whiletrue,
+.ui.dowhiletrue, .ui.switch, .ui.functioncall, .ui.return, .ui.break {
+  background: var(--iv-cartao);
+  border: 1px solid var(--iv-borda);
+  border-left: 6px solid var(--iv-controle);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(20, 24, 40, .05);
+}
+.ui.reader, .ui.writer { border-left-color: var(--iv-es); }
+.ui.attribution { border-left-color: var(--iv-atrib); }
+.ui.functioncall { border-left-color: var(--iv-chamada); }
+.ui.return, .ui.break { border-left-color: var(--iv-retorno); }
+.ui.comment { border-left-color: var(--iv-comentario); }
+.ui.iftrue, .ui.repeatNtimes, .ui.whiletrue, .ui.dowhiletrue, .ui.switch { background: #f8f8ff; }
+
+/* Blocos internos (então / senão / corpo dos laços) */
+.ui.block_commands {
+  border-radius: 8px;
+}
+
+/* Arrastando comandos */
+.command_container.over_command_drag,
+.commands_list_div.over_command_drag {
+  outline: 2px dashed var(--iv-primaria);
+  outline-offset: 2px;
+}
+
+/* Declarações de variáveis */
+.ui.label.variable_container {
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(20, 24, 40, .08);
+}
+
+/* Seletores dentro das expressões */
+.ui.dropdown.variable_type,
+.single_element_expression .ui.dropdown,
+.ui.dropdown.context_menu_clear {
+  border-radius: 8px;
+}
+
+/* Botões de adicionar */
+.ui.icon.button.purple,
+.ui.icon.button.orange,
+.ui.icon.button.add_global_button {
+  border-radius: 8px;
+}
+.ui.teal.button.add_function_button {
+  background: var(--iv-primaria);
+  border-radius: 10px;
+}
+.ui.teal.button.add_function_button:hover { background: #4338ca; }
+.ui.button.green.add_expression { border-radius: 8px; }
+
+/* Terminal */
+.bash {
+  box-shadow: var(--iv-sombra);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.bash-title {
+  background: #2a2f45;
+  color: #c9cee3;
+  border: none;
+  text-shadow: none;
+}
+.bash-body {
+  background: var(--iv-codigo-fundo);
+  color: #e6e9f2;
+}
+
+/* Mensagem de erro de carregamento */
+.dimmer_content_message h3 { font-weight: 600; }
+.dimmer_content_message .positive.ui.button { background: var(--iv-primaria); border-radius: 10px; }
