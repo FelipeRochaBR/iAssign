@@ -3191,6 +3191,24 @@ JS
     } // function iassign_activity_tracker($iassign_statement)
 
 
+  /// Version history preview ("eye" icon): how to open the activity's iLM (HTML5 only) showing a saved version.
+  //  The iLM gets the version through group_ajax.php?action=versionraw (plain text), exactly as it gets content from
+  //  ilm_security.php in the activity page. Returns null when the iLM can not be previewed (e.g. Java applets).
+  function iassign_version_preview_config ($iassign_statement) {
+    global $DB;
+    $ilm = $DB->get_record('iassign_ilm', array('id' => $iassign_statement->iassign_ilmid), 'id, type, file_jar, file_class, height');
+    if (!$ilm || strtolower($ilm->type) != 'html5' || empty($ilm->file_class))
+      return null;
+    // Same parameters as ilm_handlers/html5.php!build_ilm_tags(type "activity"); the version URL is appended by the panel JS
+    return array(
+      // lang: 2 letters, as html5.php sends it (iVProg does not know "pt_br" and shows its loading error)
+      'url'    => $ilm->file_jar . $ilm->file_class . '?1=1&iLM_PARAM_AssignmentURL=true&iLM_PARAM_SendAnswer=false&lang=' .
+                  substr(current_language(), 0, 2),
+      'height' => max(400, (int) $ilm->height)
+      );
+    }
+
+
   /// Group / versions panel, printed above the iLM:
   //  - group activity (student with teammates): members with presence (who has the activity open now), who saved the
   //    most recent state and when, last submission, "Sync automatically"; polls group_ajax.php (every few seconds while
@@ -3200,7 +3218,7 @@ JS
   //  @param $iassign_statement the activity being shown
   //  @param $base_time timecreated of the content loaded in the iLM (0 = teacher's template / nothing saved)
   function iassign_group_panel ($iassign_statement, $base_time) {
-    global $CFG, $USER;
+    global $CFG, $USER, $DB;
 
     if (isguestuser() || $this->userid_iassign != $USER->id)
       return '';
@@ -3222,7 +3240,9 @@ JS
                    'group_newer_version', 'group_load_newer', 'group_keep_mine', 'group_conflict', 'group_overwrite',
                    'group_confirm_load', 'group_syncing', 'group_connection_lost', 'group_history', 'group_history_hide',
                    'group_history_empty', 'group_history_current', 'group_restore', 'group_restore_confirm',
-                   'group_restore_unsaved', 'group_restore_unloadable', 'group_restoring', 'group_error') as $key)
+                   'group_restore_unsaved', 'group_restore_unloadable', 'group_restoring', 'group_error',
+                   'group_update', 'group_update_confirm', 'group_updating', 'group_history_here', 'group_view_version',
+                   'group_preview_title', 'group_preview_readonly', 'group_close', 'group_history_more') as $key)
       $strings[$key] = get_string($key, 'iassign');
 
     $config = array(
@@ -3234,6 +3254,7 @@ JS
       'baseTime'  => (int) $base_time,
       'pollFast'  => \mod_iassign\group_collab::POLL_FAST_MS,
       'pollSlow'  => \mod_iassign\group_collab::POLL_SLOW_MS,
+      'preview'   => $this->iassign_version_preview_config($iassign_statement),
       'data'      => $data,
       'str'       => $strings
       );
@@ -3270,9 +3291,24 @@ JS
   .iassign-group-panel .iassign-gm.is-online .iassign-gm-dot { background: #2e7d32; }
   .iassign-group-panel .iassign-gm.is-me { font-weight: 600; }
   .iassign-group-panel .iassign-group-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
-  .iassign-group-panel .iassign-history { max-height: 16rem; overflow-y: auto; }
+  /* first page (5 versions): no scroll bar; after "Show more versions": limited height with scroll */
+  .iassign-group-panel .iassign-history.is-expanded { max-height: 18rem; overflow-y: auto; }
   .iassign-group-panel .iassign-history .list-group-item { display: flex; flex-wrap: wrap; align-items: center;
     justify-content: space-between; gap: .5rem; padding: .4rem .75rem; font-size: .875rem; }
+  .iassign-group-panel .iassign-history .list-group-item.is-here { background: var(--bs-secondary-bg, #f1f3f5); }
+  .iassign-group-panel .iassign-version-actions { display: flex; align-items: center; gap: .4rem; }
+  .iassign-version-modal { position: fixed; inset: 0; z-index: 2000; background: rgba(15, 18, 30, .55);
+    display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .iassign-version-modal[hidden] { display: none; }
+  .iassign-version-dialog { background: var(--bs-body-bg, #fff); color: var(--bs-body-color, #212529); border-radius: 14px;
+    width: min(1100px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .3); }
+  .iassign-version-dialog header, .iassign-version-dialog footer { padding: .75rem 1rem; display: flex; align-items: center;
+    justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+  .iassign-version-dialog header { border-bottom: 1px solid var(--bs-border-color, #dee2e6); }
+  .iassign-version-dialog footer { border-top: 1px solid var(--bs-border-color, #dee2e6); justify-content: flex-end; }
+  .iassign-version-body { position: relative; overflow: auto; flex: 1 1 auto; background: var(--bs-tertiary-bg, #f6f7fb); }
+  .iassign-version-body iframe { display: block; width: 100%; border: 0; pointer-events: none; background: #fff; }
 </style>
 <div id="iassign-group-panel" class="card mb-3 iassign-group-panel" aria-live="polite">
   <div class="card-body p-3">
@@ -3288,6 +3324,20 @@ JS
       <ul class="list-group" id="iassign-history-list"></ul>
     </div>
     <div id="iassign-group-alert" class="alert mt-2 mb-0" role="alert" hidden></div>
+  </div>
+</div>
+<div id="iassign-version-modal" class="iassign-version-modal" hidden>
+  <div class="iassign-version-dialog" role="dialog" aria-modal="true" aria-labelledby="iassign-version-title">
+    <header>
+      <div><strong id="iassign-version-title"></strong>
+        <div class="small text-muted">' . get_string('group_preview_readonly', 'iassign') . '</div></div>
+      <button type="button" class="btn-close" id="iassign-version-x" aria-label="' . s(get_string('group_close', 'iassign')) . '"></button>
+    </header>
+    <div class="iassign-version-body" id="iassign-version-body"></div>
+    <footer>
+      <button type="button" class="btn btn-outline-secondary" id="iassign-version-close">' . get_string('group_close', 'iassign') . '</button>
+      <button type="button" class="btn btn-primary" id="iassign-version-apply"></button>
+    </footer>
   </div>
 </div>
 <script type="text/javascript">
@@ -3356,7 +3406,8 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
   // ---- iLM content ----
   function getAnswer() {
     try {
-      var f = window.frames[0];
+      var iLM = document.getElementById('iLM'); // the activity's iLM frame (html5.php), never the history preview
+      var f = iLM ? iLM.contentWindow : window.frames[0];
       if (f && typeof f.getAnswer === 'function') {
         var a = f.getAnswer();
         return (a === null || a === undefined || a === -1) ? '' : String(a);
@@ -3403,9 +3454,18 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
   }
 
   // ---- version history ----
-  function renderHistory(versions) {
-    el.historyList.textContent = '';
-    if (!versions.length) {
+  // Direction of a saved version relative to the one this page has loaded (G.baseTime):
+  //   newer -> "Update" (forward), older -> "Restore" (back), the loaded one -> "You are on this version"
+  // The history shows HISTORY_PAGE versions at a time; "Show more versions" appends the next page.
+  var HISTORY_PAGE = 5;
+  var historyOffset = 0;      // how many versions are already listed
+  var historyHereFound = false;
+  function renderHistory(versions, append, more) {
+    if (!append) { el.historyList.textContent = ''; historyHereFound = false; el.history.classList.remove('is-expanded'); }
+    var firstNew = null;
+    var oldMore = el.historyList.querySelector('.iassign-history-more');
+    if (oldMore) oldMore.remove();
+    if (!append && !versions.length) {
       var empty = document.createElement('li');
       empty.className = 'list-group-item text-muted';
       empty.textContent = S.group_history_empty;
@@ -3413,33 +3473,78 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
       return;
     }
     versions.forEach(function (v, i) {
+      var dir = v.time > G.baseTime ? 'forward' : 'back';
+      if (v.time === G.baseTime && !historyHereFound) { dir = 'here'; historyHereFound = true; }
+      var latest = !append && i === 0;
+
       var li = document.createElement('li');
-      li.className = 'list-group-item';
+      li.className = 'list-group-item' + (dir === 'here' ? ' is-here' : '');
       var label = document.createElement('span');
       var who = document.createElement('strong');
       who.textContent = authorOf(v);
       label.appendChild(who);
       label.appendChild(document.createTextNode(' · ' + v.timestr));
-      li.appendChild(label);
-      if (i === 0) {
+      if (latest) {
         var badge = document.createElement('span');
-        badge.className = 'badge bg-secondary badge-secondary';
+        badge.className = 'badge bg-secondary badge-secondary ms-2 ml-2';
         badge.textContent = S.group_history_current;
-        li.appendChild(badge);
+        label.appendChild(badge);
+      }
+      li.appendChild(label);
+
+      var actions = document.createElement('span');
+      actions.className = 'iassign-version-actions';
+      if (cfg.preview) {
+        var eye = document.createElement('button');
+        eye.type = 'button';
+        eye.className = 'btn btn-sm btn-outline-secondary';
+        eye.title = S.group_view_version;
+        eye.setAttribute('aria-label', S.group_view_version + ': ' + authorOf(v) + ' · ' + v.timestr);
+        eye.innerHTML = '<i class="fa fa-eye" aria-hidden="true"></i>';
+        eye.addEventListener('click', function () { openPreview(v, dir, latest); });
+        actions.appendChild(eye);
+      }
+      if (dir === 'here') {
+        var here = document.createElement('span');
+        here.className = 'badge bg-primary badge-primary';
+        here.textContent = S.group_history_here;
+        actions.appendChild(here);
       } else {
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'btn btn-sm btn-outline-primary';
-        btn.textContent = S.group_restore;
-        btn.addEventListener('click', function () { restoreVersion(v); });
-        li.appendChild(btn);
+        btn.className = 'btn btn-sm ' + (dir === 'forward' ? 'btn-primary' : 'btn-outline-primary');
+        btn.textContent = dir === 'forward' ? S.group_update : S.group_restore;
+        btn.addEventListener('click', function () { applyVersion(v, dir, latest); });
+        actions.appendChild(btn);
       }
+      li.appendChild(actions);
       el.historyList.appendChild(li);
+      if (!firstNew) firstNew = li;
     });
+    if (append) {
+      el.history.classList.add('is-expanded');   // the scroll bar only appears after "Show more versions"
+      if (firstNew) // show the versions just loaded
+        el.history.scrollTop += firstNew.getBoundingClientRect().top - el.history.getBoundingClientRect().top;
+    }
+    if (more) {
+      var liMore = document.createElement('li');
+      liMore.className = 'list-group-item iassign-history-more justify-content-center';
+      var btnMore = document.createElement('button');
+      btnMore.type = 'button';
+      btnMore.className = 'btn btn-sm btn-link';
+      btnMore.textContent = S.group_history_more;
+      btnMore.addEventListener('click', function () { btnMore.disabled = true; loadHistory(true); });
+      liMore.appendChild(btnMore);
+      el.historyList.appendChild(liMore);
+    }
   }
-  function loadHistory() {
-    return api('history').then(function (d) { renderHistory(d.versions); })
-      .catch(function () { showAlert('danger', S.group_error); });
+  // append = false: (re)load from the newest version; true: the next page after the versions already listed
+  function loadHistory(append) {
+    if (!append) historyOffset = 0;
+    return api('history', { offset: historyOffset, limit: HISTORY_PAGE }).then(function (d) {
+      renderHistory(d.versions, append, d.more);
+      historyOffset += d.versions.length;
+    }).catch(function () { showAlert('danger', S.group_error); });
   }
   function setHistoryOpen(open) {
     el.history.hidden = !open;
@@ -3449,19 +3554,67 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
   }
   el.historyToggle.addEventListener('click', function () { setHistoryOpen(el.history.hidden); });
 
-  function restoreVersion(v) {
-    var question = fill(S.group_restore_confirm, { author: authorOf(v), time: v.timestr });
+  // "Update" (newer version) or "Restore" (older version)
+  function applyVersion(v, dir, latest) {
+    var forward = dir === 'forward';
+    var question = fill(forward ? S.group_update_confirm : S.group_restore_confirm, { author: authorOf(v), time: v.timestr });
     if (hasUnsavedChanges()) question += '\n\n' + S.group_restore_unsaved;
     if (!window.confirm(question)) return;
+    closePreview();
+    if (forward && latest) { // the newest version: just load it, nothing to write
+      showAlert('info', S.group_updating);
+      reloadNewest();
+      return;
+    }
     api('version', { stateid: v.id }).then(function (d) {
-      // Never restore content the iLM can not reopen (see html5.php!iassignAnswerUnloadable())
+      // Never bring back content the iLM can not reopen (see html5.php!iassignAnswerUnloadable())
       if (typeof window.iassignAnswerUnloadable === 'function' && window.iassignAnswerUnloadable(d.content)) {
         showAlert('warning', S.group_restore_unloadable);
         return;
       }
-      showAlert('info', S.group_restoring);
-      return api('restore', { stateid: v.id }, true).then(reloadNewest);
+      showAlert('info', forward ? S.group_updating : S.group_restoring);
+      return api('restore', { stateid: v.id, direction: forward ? 'forward' : 'back' }, true).then(reloadNewest);
     }).catch(function () { showAlert('danger', S.group_error); });
+  }
+
+  // ---- preview of a version ("eye"): the activity's iLM, read only, in a dialog ----
+  var modal = document.getElementById('iassign-version-modal');
+  // At the end of <body>: the preview frame must never be window.frames[0] (html5.php reads the iLM as frames[0])
+  if (modal) {
+    var moveModal = function () { document.body.appendChild(modal); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', moveModal); else moveModal();
+  }
+  var previewReturnFocus = null;
+  function openPreview(v, dir, latest) {
+    if (!modal || !cfg.preview) return;
+    previewReturnFocus = document.activeElement;
+    document.getElementById('iassign-version-title').textContent = fill(S.group_preview_title, { author: authorOf(v), time: v.timestr });
+    var body = document.getElementById('iassign-version-body');
+    body.textContent = '';
+    var frame = document.createElement('iframe');
+    frame.setAttribute('tabindex', '-1');          // read only: no focus/clicks inside (pointer-events: none in the CSS),
+    frame.setAttribute('aria-hidden', 'true');      // so nothing in the preview can be submitted as the student's answer
+    frame.style.height = Math.max(cfg.preview.height, Math.round(window.innerHeight * 0.7)) + 'px';
+    frame.src = cfg.preview.url + '&iLM_PARAM_Assignment=' + encodeURIComponent(cfg.ajaxUrl + '&action=versionraw&stateid=' + v.id);
+    body.appendChild(frame);
+    var apply = document.getElementById('iassign-version-apply');
+    apply.hidden = dir === 'here';
+    apply.textContent = dir === 'forward' ? S.group_update : S.group_restore;
+    apply.onclick = function () { applyVersion(v, dir, latest); };
+    modal.hidden = false;
+    document.getElementById('iassign-version-close').focus();
+  }
+  function closePreview() {
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    document.getElementById('iassign-version-body').textContent = ''; // removes the preview frame
+    if (previewReturnFocus && previewReturnFocus.focus) previewReturnFocus.focus();
+  }
+  if (modal) {
+    document.getElementById('iassign-version-close').addEventListener('click', closePreview);
+    document.getElementById('iassign-version-x').addEventListener('click', closePreview);
+    modal.addEventListener('click', function (e) { if (e.target === modal) closePreview(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePreview(); });
   }
 
   // ---- hooks used by html5.php!jsSaveState() ----

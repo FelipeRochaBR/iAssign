@@ -188,12 +188,12 @@ class group_collab {
     return array('status' => 'OK', 'time' => $timenow, 'latest' => $this->state_info($saved));
     }
 
-  /// Version history of $userid in the activity (newest first, without contents).
-  public function history ($statementid, $userid) {
+  /// Version history of $userid in the activity (newest first, without contents), one page: $limit versions from $offset.
+  public function history ($statementid, $userid, $offset = 0, $limit = self::HISTORY_LIMIT) {
     global $DB;
     $rows = $DB->get_records('iassign_submission_state',
       array('iassign_statementid' => $statementid, 'userid' => $userid),
-      'timecreated DESC, id DESC', 'id, timecreated, authorid', 0, self::HISTORY_LIMIT);
+      'timecreated DESC, id DESC', 'id, timecreated, authorid', max(0, (int) $offset), max(1, (int) $limit));
 
     // Resolve all author names at once
     $authorids = array();
@@ -224,13 +224,16 @@ class group_collab {
     }
 
   /// Restores an old version: appends it as a new state (for the whole group), so nothing is lost and it can be undone.
-  public function restore ($statementid, $userid, $stateid) {
+  //  $direction: 'back' = a version older than the one the student had loaded ("Restore"),
+  //              'forward' = a newer one ("Update") - only recorded in the event, for the research log.
+  public function restore ($statementid, $userid, $stateid, $direction = 'back') {
     $version = $this->get_version($statementid, $userid, $stateid);
     if (!$version)
       return array('status' => 'ERROR', 'error' => 'version');
     $reply = $this->store_state($statementid, $userid, $version->answer);
     if ($reply['status'] == 'OK')
-      $this->trigger_event('version_restored', $statementid, $reply['latest']['id'], array('fromstateid' => (int) $stateid));
+      $this->trigger_event('version_restored', $statementid, $reply['latest']['id'],
+        array('fromstateid' => (int) $stateid, 'direction' => $direction == 'forward' ? 'forward' : 'back'));
     return $reply;
     }
 

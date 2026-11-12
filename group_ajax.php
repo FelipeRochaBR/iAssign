@@ -7,9 +7,10 @@
  *
  * Parameters: cmid, statementid, sesskey, action =
  *   status  - heartbeat (presence) + group status (members/online, latest saved state, last submission)
- *   history - list of saved versions (newest first, without contents)
+ *   history - one page of saved versions (newest first, without contents): 'offset', 'limit' (default 5); replies 'more'
  *   version - content of one saved version ('stateid'), used by the panel to check it can be reopened before restoring
- *   restore - appends version 'stateid' as the newest state of the whole group
+ *   versionraw - content of one saved version as plain text, loaded by the iLM in the history preview ("eye" icon)
+ *   restore - appends version 'stateid' as the newest state of the whole group ('direction' = back/forward, for the log)
  *   heartbeat - research: extends/starts the student's work session ('active' = 1 if keyboard/mouse was used)
  *   autosync  - research: logs the student's "Sync automatically" choice ('enabled', 'initial')
  * Replies JSON: {status: 'OK'|'CONFLICT'|'ERROR', ...}
@@ -51,8 +52,12 @@ switch ($action) {
     $reply['status'] = 'OK';
     break;
 
-  case 'history':
-    $reply = array('status' => 'OK', 'versions' => $collab->history($statement->id, $userid));
+  case 'history': // one page of the version history ('offset', 'limit'); 'more' = there are older versions after this page
+    $offset = max(0, optional_param('offset', 0, PARAM_INT));
+    $limit = min(\mod_iassign\group_collab::HISTORY_LIMIT, max(1, optional_param('limit', 5, PARAM_INT)));
+    $versions = $collab->history($statement->id, $userid, $offset, $limit + 1); // one extra just to know if there is more
+    $more = count($versions) > $limit;
+    $reply = array('status' => 'OK', 'versions' => array_slice($versions, 0, $limit), 'more' => $more);
     break;
 
   case 'version':
@@ -60,8 +65,15 @@ switch ($action) {
     $reply = $version ? array('status' => 'OK', 'content' => $version->answer) : array('status' => 'ERROR', 'error' => 'version');
     break;
 
-  case 'restore':
-    $reply = $collab->restore($statement->id, $userid, required_param('stateid', PARAM_INT));
+  case 'versionraw': // the iLM loads this URL as its content (iLM_PARAM_Assignment) to preview a version: plain text, as ilm_security.php
+    $version = $collab->get_version($statement->id, $userid, required_param('stateid', PARAM_INT));
+    header('Content-Type: text/plain; charset=utf-8'); // not JSON: iVProg's $.get would hand an object instead of the text
+    echo $version ? $version->answer : '';
+    exit;
+
+  case 'restore': // 'direction': 'back' (older than the version the student had = restore) or 'forward' (newer = update)
+    $direction = optional_param('direction', 'back', PARAM_ALPHA) === 'forward' ? 'forward' : 'back';
+    $reply = $collab->restore($statement->id, $userid, required_param('stateid', PARAM_INT), $direction);
     break;
 
   case 'heartbeat': // research instrumentation: work sessions, same in both conditions
