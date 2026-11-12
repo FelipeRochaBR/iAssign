@@ -71,6 +71,7 @@ class restore_iassign_activity_structure_step extends restore_activity_structure
       $paths[] = $iassign_submissions;
       $iassign_submission_comments = new restore_path_element('iassign_submission_comment', '/activity/iassign/statements/statement/iassign_submissions/iassign_submission/iassign_submission_comments/iassign_submission_comment');
       $paths[] = $iassign_submission_comments;
+      $paths[] = new restore_path_element('iassign_submission_state', '/activity/iassign/statements/statement/iassign_submission_states/iassign_submission_state');
       }
     return $this->prepare_activity_structure($paths);
     }
@@ -296,6 +297,22 @@ class restore_iassign_activity_structure_step extends restore_activity_structure
 
   // Process a iassign_submission restore.
   // @param object $data The data in object form
+  /// Saved states ("Save current state" drafts / version history - see classes/group_collab.php)
+  protected function process_iassign_submission_state ($data) {
+    global $DB;
+    $data = (object) $data;
+
+    $data->iassign_statementid = $this->get_new_parentid('iassign_statement');
+    $data->userid = $this->get_mappingid('user', $data->userid);
+    if (!$data->iassign_statementid || !$data->userid)
+      return; // activity or student not restored: nothing to attach this state to
+
+    $data->authorid = empty($data->authorid) ? 0 : (int) $this->get_mappingid('user', $data->authorid, 0); // 0 = unknown
+    unset($data->id);
+    $DB->insert_record('iassign_submission_state', $data);
+    } // protected function process_iassign_submission_state($data)
+
+
   protected function process_iassign_submission ($data) {
     global $DB, $CFG;
     $data = (object) $data;
@@ -316,7 +333,7 @@ class restore_iassign_activity_structure_step extends restore_activity_structure
   // Process a iassign_submission_comment restore.
   // @param object $data The data in object form
   protected function process_iassign_submission_comment ($data) {
-    global $DB;
+    global $DB, $CFG; // $CFG: used by the debug message bellow (was missing: "Undefined variable $CFG")
     $data = (object) $data;
     $oldid = $data->id; // from source {course}.id: old {iassign_statement}.id
 

@@ -119,7 +119,8 @@ class backup_iassign_activity_structure_step extends backup_activity_structure_s
     // Restored by "restore_iassign_stepslib.php!process_iassign($data)"
     $iassign = new backup_nested_element('iassign', array('id'), array('name',
       'course', 'intro', 'introformat', 'activity_group', 'grade',
-      'timeavailable', 'timedue', 'preventlate', 'test', 'max_experiment'));
+      'timeavailable', 'timedue', 'preventlate', 'test', 'max_experiment',
+      'group_submission')); // group_submission: without it a duplicated/imported/restored group activity silently became individual
 
     // It creates the tag "<statements>...</statements>" to each {iassign} element
     $statements = new backup_nested_element('statements');
@@ -164,8 +165,17 @@ class backup_iassign_activity_structure_step extends backup_activity_structure_s
       'comment_authorid', 'timecreated', 'comment', 'return_status', 'receiver'));
 
     // Build the tree
+    // Saved states ("Save current state" drafts / version history, see classes/group_collab.php) of each activity
+    $iassign_submission_states = new backup_nested_element('iassign_submission_states');
+
+    $iassign_submission_state = new backup_nested_element('iassign_submission_state', array('id'), array('iassign_statementid',
+      'userid', 'timecreated', 'answer', 'authorid'));
+
     $iassign->add_child($statements);
     $statements->add_child($statement);
+
+    $statement->add_child($iassign_submission_states);
+    $iassign_submission_states->add_child($iassign_submission_state);
 
     $statement->add_child($iassign_submissions);
     $iassign_submissions->add_child($iassign_submission);
@@ -192,7 +202,11 @@ class backup_iassign_activity_structure_step extends backup_activity_structure_s
     if ($userinfo) {
       $iassign_submission->set_source_table('iassign_submission', array('iassign_statementid' => backup::VAR_PARENTID));
       $iassign_submission_comment->set_source_table('iassign_submission_comment', array('iassign_submissionid' => backup::VAR_PARENTID));
+      $iassign_submission_state->set_source_table('iassign_submission_state', array('iassign_statementid' => backup::VAR_PARENTID));
       }
+
+    $iassign_submission_state->annotate_ids('user', 'userid');   // {iassign_submission_state}.userid = {user}.id
+    $iassign_submission_state->annotate_ids('user', 'authorid'); // {iassign_submission_state}.authorid = {user}.id (who saved)
 
     // Define id annotations: during processing, store them in the table {backup_ids_temp} (if existing...)
     $iassign_submission->annotate_ids('user', 'userid'); // {iassign_submission}.userid = {user}.id
