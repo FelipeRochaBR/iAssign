@@ -1,0 +1,47 @@
+{
+  "tipo": "sequencia",
+  "titulo": "Módulo 2 - Decisão (se/senao)",
+  "itens": [
+    {
+      "tipo": "multipla",
+      "enunciado": "O que este programa mostra na tela?",
+      "codigo": "inteiro idade <- 15\nse (idade >= 18) {\n  escreva(\"maior de idade\")\n} senao {\n  escreva(\"menor de idade\")\n}",
+      "alternativas": [
+        "maior de idade",
+        "menor de idade",
+        "maior de idade menor de idade",
+        "Nada"
+      ],
+      "correta": 1,
+      "explicacao": "15 >= 18 é falso, então só o bloco do senao é executado.",
+      "verificar": true
+    },
+    {
+      "tipo": "lacunas",
+      "enunciado": "Complete o programa: com nota 6 ou mais, o aluno está aprovado.",
+      "codigo": "se (nota [[>=]] 6) {\n  escreva(\"Aprovado\")\n} [[senao]] {\n  escreva(\"Reprovado\")\n}",
+      "distratores": [
+        "<",
+        "=",
+        "enquanto"
+      ],
+      "explicacao": ">= significa \"maior ou igual\": a nota 6 também aprova. O senao trata o caso contrário.",
+      "verificar": true
+    },
+    {
+      "tipo": "ordenar",
+      "enunciado": "Monte o programa que lê um número e diz se ele é par ou ímpar.",
+      "linhas": [
+        "inteiro n",
+        "leia(n)",
+        "se (n % 2 == 0) {",
+        "  escreva(\"par\")",
+        "} senao {",
+        "  escreva(\"impar\")",
+        "}"
+      ],
+      "explicacao": "n % 2 é o resto da divisão por 2: resto 0 significa número par.",
+      "verificar": true
+    }
+  ]
+}

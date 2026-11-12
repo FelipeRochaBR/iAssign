@@ -1,0 +1,12 @@
+{
+  "tipo": "lacunas",
+  "enunciado": "Complete o programa que mostra os números de 1 a 10.",
+  "codigo": "inteiro i <- [[1]]\nenquanto (i [[<=]] 10) {\n  escreva(i)\n  i <- i [[+]] 1\n}",
+  "distratores": [
+    "0",
+    ">",
+    "-"
+  ],
+  "explicacao": "O contador começa em 1, o laço continua enquanto i <= 10, e i aumenta 1 a cada volta. Sem aumentar i, o laço nunca terminaria.",
+  "verificar": true
+}

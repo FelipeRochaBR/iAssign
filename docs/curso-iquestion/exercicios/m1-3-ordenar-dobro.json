@@ -1,0 +1,12 @@
+{
+  "tipo": "ordenar",
+  "enunciado": "Monte o programa que lê um número e mostra o dobro dele.",
+  "linhas": [
+    "inteiro n",
+    "leia(n)",
+    "inteiro dobro <- n * 2",
+    "escreva(dobro)"
+  ],
+  "explicacao": "Primeiro a variável é declarada, depois recebe o valor lido; só então o dobro pode ser calculado e mostrado.",
+  "verificar": true
+}

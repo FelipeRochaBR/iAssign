@@ -1,0 +1,12 @@
+{
+  "tipo": "lacunas",
+  "enunciado": "Complete o programa: com nota 6 ou mais, o aluno está aprovado.",
+  "codigo": "se (nota [[>=]] 6) {\n  escreva(\"Aprovado\")\n} [[senao]] {\n  escreva(\"Reprovado\")\n}",
+  "distratores": [
+    "<",
+    "=",
+    "enquanto"
+  ],
+  "explicacao": ">= significa \"maior ou igual\": a nota 6 também aprova. O senao trata o caso contrário.",
+  "verificar": true
+}

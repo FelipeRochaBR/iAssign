@@ -1,0 +1,14 @@
+{
+  "tipo": "multipla",
+  "enunciado": "Quantas vezes o comando escreva é executado?",
+  "codigo": "inteiro i <- 1\nenquanto (i <= 3) {\n  escreva(i)\n  i <- i + 1\n}",
+  "alternativas": [
+    "2",
+    "3",
+    "4",
+    "Infinitas vezes"
+  ],
+  "correta": 1,
+  "explicacao": "i vale 1, 2 e 3 dentro do laço. Quando i chega a 4, a condição i <= 3 fica falsa e o laço termina.",
+  "verificar": true
+}

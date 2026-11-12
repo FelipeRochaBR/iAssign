@@ -1,0 +1,15 @@
+{
+  "tipo": "ordenar",
+  "enunciado": "Monte o programa que lê um número e diz se ele é par ou ímpar.",
+  "linhas": [
+    "inteiro n",
+    "leia(n)",
+    "se (n % 2 == 0) {",
+    "  escreva(\"par\")",
+    "} senao {",
+    "  escreva(\"impar\")",
+    "}"
+  ],
+  "explicacao": "n % 2 é o resto da divisão por 2: resto 0 significa número par.",
+  "verificar": true
+}

@@ -1,0 +1,45 @@
+{
+  "tipo": "sequencia",
+  "titulo": "Módulo 3 - Repetição (enquanto)",
+  "itens": [
+    {
+      "tipo": "multipla",
+      "enunciado": "Quantas vezes o comando escreva é executado?",
+      "codigo": "inteiro i <- 1\nenquanto (i <= 3) {\n  escreva(i)\n  i <- i + 1\n}",
+      "alternativas": [
+        "2",
+        "3",
+        "4",
+        "Infinitas vezes"
+      ],
+      "correta": 1,
+      "explicacao": "i vale 1, 2 e 3 dentro do laço. Quando i chega a 4, a condição i <= 3 fica falsa e o laço termina.",
+      "verificar": true
+    },
+    {
+      "tipo": "lacunas",
+      "enunciado": "Complete o programa que mostra os números de 1 a 10.",
+      "codigo": "inteiro i <- [[1]]\nenquanto (i [[<=]] 10) {\n  escreva(i)\n  i <- i [[+]] 1\n}",
+      "distratores": [
+        "0",
+        ">",
+        "-"
+      ],
+      "explicacao": "O contador começa em 1, o laço continua enquanto i <= 10, e i aumenta 1 a cada volta. Sem aumentar i, o laço nunca terminaria.",
+      "verificar": true
+    },
+    {
+      "tipo": "ordenar",
+      "enunciado": "Monte o programa que mostra os quadrados de 1 a 5 (1, 4, 9, 16, 25).",
+      "linhas": [
+        "inteiro i <- 1",
+        "enquanto (i <= 5) {",
+        "  escreva(i * i)",
+        "  i <- i + 1",
+        "}"
+      ],
+      "explicacao": "O valor é mostrado antes de i aumentar; se as duas linhas de dentro fossem trocadas, o programa mostraria os quadrados de 2 a 6.",
+      "verificar": true
+    }
+  ]
+}

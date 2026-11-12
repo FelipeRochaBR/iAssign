@@ -1,0 +1,14 @@
+{
+  "tipo": "multipla",
+  "enunciado": "O que este programa mostra na tela?",
+  "codigo": "inteiro idade <- 15\nse (idade >= 18) {\n  escreva(\"maior de idade\")\n} senao {\n  escreva(\"menor de idade\")\n}",
+  "alternativas": [
+    "maior de idade",
+    "menor de idade",
+    "maior de idade menor de idade",
+    "Nada"
+  ],
+  "correta": 1,
+  "explicacao": "15 >= 18 é falso, então só o bloco do senao é executado.",
+  "verificar": true
+}

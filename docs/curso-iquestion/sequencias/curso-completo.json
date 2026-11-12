@@ -1,0 +1,124 @@
+{
+  "tipo": "sequencia",
+  "titulo": "Primeiros passos em programação",
+  "itens": [
+    {
+      "tipo": "multipla",
+      "enunciado": "O que este programa mostra na tela?",
+      "codigo": "inteiro x <- 5\nx <- x + 2\nescreva(x)",
+      "alternativas": [
+        "5",
+        "7",
+        "x + 2",
+        "52"
+      ],
+      "correta": 1,
+      "explicacao": "A segunda linha troca o valor de x por x + 2, ou seja, 5 + 2 = 7. Uma variável guarda só o valor mais recente.",
+      "verificar": true
+    },
+    {
+      "tipo": "lacunas",
+      "enunciado": "Complete o programa que calcula e mostra o total de uma compra.",
+      "codigo": "real preco <- 10.5\ninteiro quantidade <- 3\nreal total <- preco [[*]] quantidade\n[[escreva]](total)",
+      "distratores": [
+        "+",
+        "/",
+        "leia"
+      ],
+      "explicacao": "O total é o preço vezes a quantidade (operador *), e escreva mostra o resultado na tela. leia serve para receber um valor.",
+      "verificar": true
+    },
+    {
+      "tipo": "ordenar",
+      "enunciado": "Monte o programa que lê um número e mostra o dobro dele.",
+      "linhas": [
+        "inteiro n",
+        "leia(n)",
+        "inteiro dobro <- n * 2",
+        "escreva(dobro)"
+      ],
+      "explicacao": "Primeiro a variável é declarada, depois recebe o valor lido; só então o dobro pode ser calculado e mostrado.",
+      "verificar": true
+    },
+    {
+      "tipo": "multipla",
+      "enunciado": "O que este programa mostra na tela?",
+      "codigo": "inteiro idade <- 15\nse (idade >= 18) {\n  escreva(\"maior de idade\")\n} senao {\n  escreva(\"menor de idade\")\n}",
+      "alternativas": [
+        "maior de idade",
+        "menor de idade",
+        "maior de idade menor de idade",
+        "Nada"
+      ],
+      "correta": 1,
+      "explicacao": "15 >= 18 é falso, então só o bloco do senao é executado.",
+      "verificar": true
+    },
+    {
+      "tipo": "lacunas",
+      "enunciado": "Complete o programa: com nota 6 ou mais, o aluno está aprovado.",
+      "codigo": "se (nota [[>=]] 6) {\n  escreva(\"Aprovado\")\n} [[senao]] {\n  escreva(\"Reprovado\")\n}",
+      "distratores": [
+        "<",
+        "=",
+        "enquanto"
+      ],
+      "explicacao": ">= significa \"maior ou igual\": a nota 6 também aprova. O senao trata o caso contrário.",
+      "verificar": true
+    },
+    {
+      "tipo": "ordenar",
+      "enunciado": "Monte o programa que lê um número e diz se ele é par ou ímpar.",
+      "linhas": [
+        "inteiro n",
+        "leia(n)",
+        "se (n % 2 == 0) {",
+        "  escreva(\"par\")",
+        "} senao {",
+        "  escreva(\"impar\")",
+        "}"
+      ],
+      "explicacao": "n % 2 é o resto da divisão por 2: resto 0 significa número par.",
+      "verificar": true
+    },
+    {
+      "tipo": "multipla",
+      "enunciado": "Quantas vezes o comando escreva é executado?",
+      "codigo": "inteiro i <- 1\nenquanto (i <= 3) {\n  escreva(i)\n  i <- i + 1\n}",
+      "alternativas": [
+        "2",
+        "3",
+        "4",
+        "Infinitas vezes"
+      ],
+      "correta": 1,
+      "explicacao": "i vale 1, 2 e 3 dentro do laço. Quando i chega a 4, a condição i <= 3 fica falsa e o laço termina.",
+      "verificar": true
+    },
+    {
+      "tipo": "lacunas",
+      "enunciado": "Complete o programa que mostra os números de 1 a 10.",
+      "codigo": "inteiro i <- [[1]]\nenquanto (i [[<=]] 10) {\n  escreva(i)\n  i <- i [[+]] 1\n}",
+      "distratores": [
+        "0",
+        ">",
+        "-"
+      ],
+      "explicacao": "O contador começa em 1, o laço continua enquanto i <= 10, e i aumenta 1 a cada volta. Sem aumentar i, o laço nunca terminaria.",
+      "verificar": true
+    },
+    {
+      "tipo": "ordenar",
+      "enunciado": "Monte o programa que mostra os quadrados de 1 a 5 (1, 4, 9, 16, 25).",
+      "linhas": [
+        "inteiro i <- 1",
+        "enquanto (i <= 5) {",
+        "  escreva(i * i)",
+        "  i <- i + 1",
+        "}"
+      ],
+      "explicacao": "O valor é mostrado antes de i aumentar; se as duas linhas de dentro fossem trocadas, o programa mostraria os quadrados de 2 a 6.",
+      "verificar": true
+    }
+  ]
+}

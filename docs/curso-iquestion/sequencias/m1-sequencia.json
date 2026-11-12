@@ -1,0 +1,44 @@
+{
+  "tipo": "sequencia",
+  "titulo": "Módulo 1 - Variáveis e saída",
+  "itens": [
+    {
+      "tipo": "multipla",
+      "enunciado": "O que este programa mostra na tela?",
+      "codigo": "inteiro x <- 5\nx <- x + 2\nescreva(x)",
+      "alternativas": [
+        "5",
+        "7",
+        "x + 2",
+        "52"
+      ],
+      "correta": 1,
+      "explicacao": "A segunda linha troca o valor de x por x + 2, ou seja, 5 + 2 = 7. Uma variável guarda só o valor mais recente.",
+      "verificar": true
+    },
+    {
+      "tipo": "lacunas",
+      "enunciado": "Complete o programa que calcula e mostra o total de uma compra.",
+      "codigo": "real preco <- 10.5\ninteiro quantidade <- 3\nreal total <- preco [[*]] quantidade\n[[escreva]](total)",
+      "distratores": [
+        "+",
+        "/",
+        "leia"
+      ],
+      "explicacao": "O total é o preço vezes a quantidade (operador *), e escreva mostra o resultado na tela. leia serve para receber um valor.",
+      "verificar": true
+    },
+    {
+      "tipo": "ordenar",
+      "enunciado": "Monte o programa que lê um número e mostra o dobro dele.",
+      "linhas": [
+        "inteiro n",
+        "leia(n)",
+        "inteiro dobro <- n * 2",
+        "escreva(dobro)"
+      ],
+      "explicacao": "Primeiro a variável é declarada, depois recebe o valor lido; só então o dobro pode ser calculado e mostrado.",
+      "verificar": true
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "tipo": "lacunas",
+  "enunciado": "Complete o programa que calcula e mostra o total de uma compra.",
+  "codigo": "real preco <- 10.5\ninteiro quantidade <- 3\nreal total <- preco [[*]] quantidade\n[[escreva]](total)",
+  "distratores": [
+    "+",
+    "/",
+    "leia"
+  ],
+  "explicacao": "O total é o preço vezes a quantidade (operador *), e escreva mostra o resultado na tela. leia serve para receber um valor.",
+  "verificar": true
+}

@@ -1,0 +1,14 @@
+{
+  "tipo": "multipla",
+  "enunciado": "O que este programa mostra na tela?",
+  "codigo": "inteiro x <- 5\nx <- x + 2\nescreva(x)",
+  "alternativas": [
+    "5",
+    "7",
+    "x + 2",
+    "52"
+  ],
+  "correta": 1,
+  "explicacao": "A segunda linha troca o valor de x por x + 2, ou seja, 5 + 2 = 7. Uma variável guarda só o valor mais recente.",
+  "verificar": true
+}
