@@ -262,12 +262,14 @@ if (has_capability('mod/iassign:editiassign', $context, $USER->id)) {
     }
   else if ($formdata = $mform->get_data()) { // if exists '$mform->get_data()' use with '$formdata'
     $fs = get_file_storage();
-    if ($formdata->dirid == 0) {
-      $dir_base = '/';
-      }
-    else {
-      $dir_base = $fs->get_file_by_id($formdata->dirid);
-      //$dir_base = $dir_base->get_filepath();
+    // $dir_base must be the PATH (string, e.g. '/' or '/folder/') of the current folder: it is passed as 'filepath' to the
+    // file API (get_directory_files(), extract_to_storage(), save_stored_file()). Before, it was the stored_file object of
+    // the folder, which broke importing a .zip inside a folder with "clean() can not process objects" (Moodle 4+/5).
+    $dir_base = '/';
+    if ($formdata->dirid != 0) {
+      $dir = $fs->get_file_by_id($formdata->dirid);
+      if ($dir && $dir->is_directory())
+        $dir_base = $dir->get_filepath();
       }
 
     if ($newfilename = $mform->get_new_filename('file')) {
