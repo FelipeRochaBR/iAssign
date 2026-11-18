@@ -82,9 +82,14 @@ switch ($action) {
     break;
 
   case 'autosync': // research instrumentation: "Sync automatically" choice of the student (changes the treatment)
+    $enabled = optional_param('enabled', 0, PARAM_INT) ? 1 : 0;
+    $initial = optional_param('initial', 0, PARAM_INT) ? 1 : 0;
+    // The choice belongs to the student's account (not to the browser): it survives logout/login, other browsers, etc.
+    if (!$initial)
+      set_user_preference(\mod_iassign\group_collab::AUTOSYNC_PREF, $enabled);
     $collab->trigger_event('autosync_changed', $statement->id, $statement->id, array(
-      'enabled' => optional_param('enabled', 0, PARAM_INT) ? 1 : 0,
-      'initial' => optional_param('initial', 0, PARAM_INT) ? 1 : 0));
+      'enabled' => $enabled,
+      'initial' => $initial));
     $reply = array('status' => 'OK');
     break;
 

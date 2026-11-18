@@ -28,6 +28,8 @@ class group_collab {
   const POLL_SLOW_MS = 10000;
   /** A member is "online" while their last heartbeat is at most this old (> 2 slow polls). */
   const ONLINE_SECONDS = 25;
+  /** Moodle user preference with the student's "Sync automatically" choice (1 = on, the default; 0 = off). */
+  const AUTOSYNC_PREF = 'iassign_group_autosync';
   /** How many versions the history lists. */
   const HISTORY_LIMIT = 50;
   /** Research heartbeat of the activity page (both conditions), see heartbeat_session() (ms). */

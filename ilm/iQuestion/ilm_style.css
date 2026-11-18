@@ -157,6 +157,53 @@ button:focus-visible { outline: 3px solid var(--iq-primaria); outline-offset: 2p
   cursor: default;
 }
 
+/* Próxima lacuna a ser preenchida: é onde a próxima peça tocada vai entrar */
+.iq-lacuna.is-vazia.is-proxima {
+  border-color: #a5b4fc;
+  background: rgba(165, 180, 252, .18);
+  animation: iq-pulsar 1.4s ease-in-out infinite;
+}
+@keyframes iq-pulsar {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(165, 180, 252, .55); }
+  50%      { box-shadow: 0 0 0 5px rgba(165, 180, 252, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iq-lacuna.is-vazia.is-proxima { animation: none; }
+}
+
+/* Código longo: rola dentro da própria caixa, para as peças continuarem à vista logo abaixo */
+.iq-codigo-lacunas {
+  position: relative; /* referência para calcular a posição das lacunas ao rolar */
+  max-height: 55vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #5b6385 transparent;
+}
+
+.iq-progresso {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: .88em;
+  color: var(--iq-texto-suave);
+}
+.iq-progresso-barra {
+  flex: 0 0 120px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--iq-borda);
+  overflow: hidden;
+}
+.iq-progresso-barra > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--iq-primaria);
+  transition: width .2s;
+}
+
 .iq-banco { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .iq-peca {

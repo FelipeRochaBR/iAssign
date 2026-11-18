@@ -3225,8 +3225,9 @@ JS
 
     $collab = $this->group_collab();
     $is_group = count($collab->member_ids($USER->id)) > 1;
-    if (!$is_group && !$collab->latest_state($iassign_statement->id, $USER->id))
-      return ''; // alone and nothing saved yet: nothing to show
+    // Alone and nothing saved yet: nothing to show for now, but the panel is printed hidden so that the first
+    // "Save" can reveal the version history right away (see G.onSaved()), without reloading the page.
+    $start_hidden = !$is_group && !$collab->latest_state($iassign_statement->id, $USER->id);
 
     $data = null;
     if ($is_group) {
@@ -3244,18 +3245,23 @@ JS
                    'group_update', 'group_update_confirm', 'group_updating', 'group_history_here', 'group_view_version',
                    'group_preview_title', 'group_preview_readonly', 'group_close', 'group_history_more') as $key)
       $strings[$key] = get_string($key, 'iassign');
+    // Side-by-side comparison ("eye"). Fallback text while Moodle's language cache still lacks these new strings.
+    foreach (array('group_accept' => 'Aceitar esta versão',
+                   'group_compare_mine' => 'Sua tela - você pode continuar editando') as $key => $fallback)
+      $strings[$key] = get_string_manager()->string_exists($key, 'iassign') ? get_string($key, 'iassign') : $fallback;
 
     $config = array(
       'group'     => $is_group,
       'ajaxUrl'   => $CFG->wwwroot . '/mod/iassign/group_ajax.php?cmid=' . $this->cm->id . '&statementid=' . $iassign_statement->id .
                      '&sesskey=' . sesskey(),
       'reloadUrl' => $CFG->wwwroot . '/mod/iassign/view.php?id=' . $this->cm->id . '&iassign_current=' . $iassign_statement->id .
-                     '&userid_iassign=' . $USER->id . '&action=view',
+                     '&userid_iassign=' . $USER->id . '&action=view&latest=1', // latest=1: the group's newest version, even with "Sync automatically" off
       'baseTime'  => (int) $base_time,
       'pollFast'  => \mod_iassign\group_collab::POLL_FAST_MS,
       'pollSlow'  => \mod_iassign\group_collab::POLL_SLOW_MS,
       'preview'   => $this->iassign_version_preview_config($iassign_statement),
       'data'      => $data,
+      'autosync'  => (bool) get_user_preferences(\mod_iassign\group_collab::AUTOSYNC_PREF, 1), // saved in the account, see group_ajax.php
       'str'       => $strings
       );
 
@@ -3309,8 +3315,20 @@ JS
   .iassign-version-dialog footer { border-top: 1px solid var(--bs-border-color, #dee2e6); justify-content: flex-end; }
   .iassign-version-body { position: relative; overflow: auto; flex: 1 1 auto; background: var(--bs-tertiary-bg, #f6f7fb); }
   .iassign-version-body iframe { display: block; width: 100%; border: 0; pointer-events: none; background: #fff; }
+  /* Side-by-side comparison: the activity iLM (never moved in the DOM: moving an iframe reloads it) shrinks to the left half */
+  .iassign-compare-head { display: flex; gap: 16px; align-items: flex-end; margin: .75rem 0 .5rem; max-width: 100%; }
+  .iassign-compare-head > div { flex: 1 1 0; min-width: 0; }
+  .iassign-compare-head .iassign-compare-other { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+  .iassign-compare-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+  iframe.iassign-compare-mine { box-sizing: border-box; width: calc(50% - 8px) !important; border: 0; display: inline-block;
+    vertical-align: top; margin-right: 12px; border-radius: 8px; outline: 2px solid var(--bs-border-color, #dee2e6); }
+  .iassign-compare-pane { box-sizing: border-box; display: inline-block; vertical-align: top; width: calc(50% - 8px);
+    border-radius: 8px; overflow: hidden;
+    outline: 2px solid var(--bs-primary, #0f6cbf); background: #fff; }
+  .iassign-compare-pane iframe { display: block; width: 100%; border: 0; }
 </style>
-<div id="iassign-group-panel" class="card mb-3 iassign-group-panel" aria-live="polite">
+<div id="iassign-group-panel" class="card mb-3 iassign-group-panel" aria-live="polite"' .
+  ($start_hidden ? ' style="display: none;"' : '') . '>
   <div class="card-body p-3">
     <div class="d-flex flex-wrap align-items-center justify-content-between" style="gap: .5rem;">
       <div>' . $title . '</div>
@@ -3444,7 +3462,8 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'btn btn-sm ' + b.cls;
-        btn.textContent = b.label;
+        if (b.icon) btn.innerHTML = '<i class="fa ' + b.icon + '" aria-hidden="true"></i> '; // fixed class names only
+        btn.appendChild(document.createTextNode(b.label));
         btn.addEventListener('click', b.onClick);
         box.appendChild(btn);
       });
@@ -3501,7 +3520,7 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
         eye.title = S.group_view_version;
         eye.setAttribute('aria-label', S.group_view_version + ': ' + authorOf(v) + ' · ' + v.timestr);
         eye.innerHTML = '<i class="fa fa-eye" aria-hidden="true"></i>';
-        eye.addEventListener('click', function () { openPreview(v, dir, latest); });
+        eye.addEventListener('click', function () { openCompare(v, dir, latest); }); // narrow screens: falls back to the dialog
         actions.appendChild(eye);
       }
       if (dir === 'here') {
@@ -3561,6 +3580,7 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
     if (hasUnsavedChanges()) question += '\n\n' + S.group_restore_unsaved;
     if (!window.confirm(question)) return;
     closePreview();
+    closeCompare();
     if (forward && latest) { // the newest version: just load it, nothing to write
       showAlert('info', S.group_updating);
       reloadNewest();
@@ -3604,6 +3624,78 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
     modal.hidden = false;
     document.getElementById('iassign-version-close').focus();
   }
+  // ---- side-by-side comparison ("eye" on wide screens): the student's iLM on the left, the chosen version on the right ----
+  // The iLM iframe is never moved (that would reload it and lose unsaved work): it only gets a class that halves its width,
+  // and the comparison is inserted right after it - so the activity stays window.frames[0] (html5.php reads it so).
+  var COMPARE_MIN_WIDTH = 992;
+  var compare = null; // { iLM, head, pane }
+  function openCompare(v, dir, latest) {
+    var iLM = document.getElementById('iLM');
+    if (!iLM || !cfg.preview || window.innerWidth < COMPARE_MIN_WIDTH) { openPreview(v, dir, latest); return; }
+    closeCompare();
+    var title = fill(S.group_preview_title, { author: authorOf(v), time: v.timestr });
+
+    var head = document.createElement('div');
+    head.className = 'iassign-compare-head';
+    var mine = document.createElement('div');
+    var mineLabel = document.createElement('strong');
+    mineLabel.textContent = S.group_compare_mine;
+    mine.appendChild(mineLabel);
+    var other = document.createElement('div');
+    other.className = 'iassign-compare-other';
+    var otherText = document.createElement('div');
+    var otherTitle = document.createElement('strong');
+    otherTitle.textContent = title;
+    var otherNote = document.createElement('div');
+    otherNote.className = 'small text-muted';
+    otherNote.textContent = S.group_preview_readonly;
+    otherText.appendChild(otherTitle);
+    otherText.appendChild(otherNote);
+    var actions = document.createElement('div');
+    actions.className = 'iassign-compare-actions';
+    if (dir !== 'here') {
+      var accept = document.createElement('button');
+      accept.type = 'button';
+      accept.className = 'btn btn-sm btn-primary';
+      accept.textContent = S.group_accept;
+      accept.addEventListener('click', function () { applyVersion(v, dir, latest); });
+      actions.appendChild(accept);
+    }
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'btn btn-sm btn-outline-secondary';
+    close.textContent = S.group_close;
+    close.addEventListener('click', closeCompare);
+    actions.appendChild(close);
+    other.appendChild(otherText);
+    other.appendChild(actions);
+    head.appendChild(mine);
+    head.appendChild(other);
+
+    var pane = document.createElement('div');
+    pane.className = 'iassign-compare-pane';
+    var frame = document.createElement('iframe');
+    frame.title = title;
+    frame.style.height = (iLM.offsetHeight || cfg.preview.height) + 'px';
+    frame.src = cfg.preview.url + '&iLM_PARAM_Assignment=' + encodeURIComponent(cfg.ajaxUrl + '&action=versionraw&stateid=' + v.id);
+    pane.appendChild(frame);
+
+    iLM.parentNode.insertBefore(head, iLM);
+    iLM.parentNode.insertBefore(pane, iLM.nextSibling);
+    iLM.classList.add('iassign-compare-mine');
+    compare = { iLM: iLM, head: head, pane: pane };
+    head.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    (actions.firstChild || close).focus({ preventScroll: true });
+  }
+  function closeCompare() {
+    if (!compare) return;
+    compare.head.remove();
+    compare.pane.remove(); // also removes the preview frame
+    compare.iLM.classList.remove('iassign-compare-mine');
+    compare = null;
+  }
+  window.addEventListener('resize', function () { if (compare && window.innerWidth < COMPARE_MIN_WIDTH) closeCompare(); });
+
   function closePreview() {
     if (!modal || modal.hidden) return;
     modal.hidden = true;
@@ -3619,6 +3711,8 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
 
   // ---- hooks used by html5.php!jsSaveState() ----
   G.onSaved = function (resp) {
+    var panel = $('iassign-group-panel');
+    if (panel && panel.style.display === 'none') panel.style.display = ''; // first save: the history now has something to show
     G.forceNext = false;
     G.baseTime = resp.time;
     takeSnapshot();
@@ -3646,17 +3740,15 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
   // ==== group activity: members, presence, newer versions, polling ====
 
   // "Sync automatically": per-browser preference (default on)
-  var autosync = true;
-  try { autosync = window.localStorage.getItem('iassign_group_autosync') !== '0'; } catch (e) {}
-  el.autosync.checked = autosync;
+  // The choice is a preference of the student's account (cfg.autosync), saved by group_ajax.php?action=autosync
+  el.autosync.checked = cfg.autosync !== false;
   // Research: the choice changes the treatment, so it is logged when the activity opens and whenever it changes
   function logAutosync(initial) {
     api('autosync', { enabled: el.autosync.checked ? 1 : 0, initial: initial ? 1 : 0 }).catch(function () {});
   }
   logAutosync(true);
   el.autosync.addEventListener('change', function () {
-    try { window.localStorage.setItem('iassign_group_autosync', el.autosync.checked ? '1' : '0'); } catch (e) {}
-    logAutosync(false);
+    logAutosync(false); // also saves the choice in the student's account
   });
 
   function renderMembers(members) {
@@ -3706,7 +3798,7 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
       setTimeout(reloadNewest, 600);
       return;
     }
-    showAlert('warning', fill(S.group_newer_version, a), [
+    var buttons = [
       { label: S.group_load_newer, cls: 'btn-primary', onClick: function () {
           if (!hasUnsavedChanges() || window.confirm(S.group_confirm_load)) reloadNewest();
         } },
@@ -3715,7 +3807,13 @@ window.iassignGroupConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP
           G.baseTime = latest.time; // the student knowingly works over it: next save may replace it
           hideAlert();
         } }
-    ]);
+    ];
+    // "Eye": compare the teammate's new version side by side with this screen (accept it from there)
+    if (cfg.preview && latest.id)
+      buttons.splice(1, 0, { label: S.group_view_version, icon: 'fa-eye', cls: 'btn-outline-primary', onClick: function () {
+          openCompare(latest, 'forward', true);
+        } });
+    showAlert('warning', fill(S.group_newer_version, a), buttons);
   }
 
   // Polling: fast while a teammate is online, slow when alone, paused in background tabs, backing off on errors
@@ -4503,6 +4601,20 @@ JS;
               array('iassign_statementid' => $iassign_statement_activity_item->id, 'userid' => $this->userid_iassign),
               'timecreated DESC, id DESC', '*', 0, 1); // id: tie-break for states saved in the same second
             $latest_draft = $latest_draft ? reset($latest_draft) : false;
+
+            // Group activity with "Sync automatically" OFF: open the student's OWN last saved version, not a teammate's.
+            // The panel still warns that a newer teammate version exists ('base_time' below is the student's version)
+            // and "Load newest" uses '&latest=1' to really load it. No own version yet: the teacher's template (blank).
+            global $USER;
+            if ($latest_draft && $latest_draft->authorid != $USER->id && $this->userid_iassign == $USER->id &&
+                !optional_param('latest', 0, PARAM_INT) &&
+                !get_user_preferences(\mod_iassign\group_collab::AUTOSYNC_PREF, 1)) {
+              $own_draft = $DB->get_records('iassign_submission_state',
+                array('iassign_statementid' => $iassign_statement_activity_item->id, 'userid' => $this->userid_iassign,
+                      'authorid' => $USER->id),
+                'timecreated DESC, id DESC', '*', 0, 1);
+              $latest_draft = $own_draft ? reset($own_draft) : false;
+              }
             }
 
           // Group collaboration panel: 'base_time' = moment of the content that will be loaded in the iLM, so the panel/save

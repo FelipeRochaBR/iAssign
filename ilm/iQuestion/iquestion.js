@@ -117,7 +117,7 @@ function parseItem(d) {
 // Divide o código com [[resposta]] em pedaços: {texto} ou {lacuna: "resposta"}
 function partesLacunas(codigo) {
   var partes = [];
-  var re = /\[\[([\s\S]*?)\]\]/g;
+  var re = /\[\[([\s\S]*?\]*)\]\]/g; // "\]*" deixa a lacuna terminar em "]" (ex.: [[[ ]]] -> "[ ]")
   var ultimo = 0, m;
   while ((m = re.exec(codigo || "")) !== null) {
     if (m.index > ultimo) partes.push({ texto: codigo.slice(ultimo, m.index) });
@@ -373,7 +373,19 @@ function montarLacunas(corpo, dados, resposta, mudou) {
     });
   }
 
-  var codigo = el("pre", "iq-codigo");
+  // Contador de lacunas preenchidas (ajuda a se localizar em códigos longos)
+  var progresso = el("div", "iq-progresso");
+  var progressoTexto = el("span");
+  var progressoBarra = el("span", "iq-progresso-barra");
+  var progressoCheio = el("span");
+  progressoBarra.appendChild(progressoCheio);
+  progresso.appendChild(progressoTexto);
+  progresso.appendChild(progressoBarra);
+  progresso.setAttribute("aria-live", "polite");
+  corpo.appendChild(progresso);
+
+  // Código longo rola dentro da caixa (ver .iq-codigo-lacunas no CSS)
+  var codigo = el("pre", "iq-codigo iq-codigo-lacunas");
   corpo.appendChild(codigo);
   var banco = el("div", "iq-banco");
   banco.setAttribute("aria-label", "Peças disponíveis");
@@ -388,9 +400,23 @@ function montarLacunas(corpo, dados, resposta, mudou) {
     codigo.appendChild(s);
     slots.push(s);
   });
-  if (!slots.length) corpo.insertBefore(el("em", "iq-vazio", "Este código ainda não tem lacunas."), banco);
+  if (!slots.length) {
+    corpo.insertBefore(el("em", "iq-vazio", "Este código ainda não tem lacunas."), banco);
+    progresso.hidden = true;
+  }
 
   desenhar();
+
+  // Rola só a caixa do código (não a página) até a lacuna, se ela estiver fora de vista
+  function rolarAte(i) {
+    var s = slots[i];
+    if (!s || codigo.scrollHeight <= codigo.clientHeight) return;
+    var topo = s.offsetTop, base = topo + s.offsetHeight, margem = 24;
+    if (topo - margem >= codigo.scrollTop && base + margem <= codigo.scrollTop + codigo.clientHeight) return;
+    var alvo = Math.max(0, topo - codigo.clientHeight / 3);
+    if (codigo.scrollTo) codigo.scrollTo({ top: alvo, behavior: "smooth" });
+    else codigo.scrollTop = alvo;
+  }
 
   function peca(id) { return pecas[id]; }
 
@@ -400,6 +426,8 @@ function montarLacunas(corpo, dados, resposta, mudou) {
     lacunas[livre] = id;
     peca(id).usada = true;
     desenhar(); mudou();
+    var proxima = lacunas.indexOf(null);
+    rolarAte(proxima < 0 ? livre : proxima);
   }
   function esvaziar(i) {
     if (lacunas[i] === null) return;
@@ -409,10 +437,15 @@ function montarLacunas(corpo, dados, resposta, mudou) {
   }
 
   function desenhar() {
+    var proxima = lacunas.indexOf(null);
+    var cheias = lacunas.filter(function (x) { return x !== null; }).length;
+    progressoTexto.textContent = "Lacunas preenchidas: " + cheias + " de " + lacunas.length;
+    progressoCheio.style.width = (lacunas.length ? cheias / lacunas.length * 100 : 0) + "%";
     slots.forEach(function (s, i) {
       var id = lacunas[i];
       s.textContent = id === null ? "" : peca(id).texto;
       s.classList.toggle("is-vazia", id === null);
+      s.classList.toggle("is-proxima", i === proxima);
       s.setAttribute("aria-label", id === null ? "Lacuna " + (i + 1) + " vazia" : "Lacuna " + (i + 1) + ": " + peca(id).texto + " (toque para remover)");
     });
     banco.textContent = "";

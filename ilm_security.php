@@ -54,9 +54,12 @@ class ilm_security {
   /// to avoid error "Error writing to database"!"Incorrect string value" lets ensure to use UTF-8
   //  Considering only 'ISO-8859-1'
   static function convert2utf8 ($strcontent) {
-    // $current_encoding = mb_detect_encoding($strcontent, ['ASCII', 'UTF-8', 'ISO-8859-1']); // 'ASCII', 'UTF-8' and 'ISO-8859-1'
-    $current_encoding = mb_detect_encoding($strcontent, 'ISO-8859-1'); // 'ASCII', 'UTF-8' and 'ISO-8859-1'
-    $converted_text_to_utf8 = iconv($current_encoding, 'UTF-8', $strcontent); // converted to UTF-8
+    // Already valid UTF-8 (includes plain ASCII): keep it. Converting it again would corrupt every accented letter
+    // ("á" -> "Ã¡" -> "ÃÂ¡" ...) a little more each time the file is opened and saved again.
+    // (Never use mb_detect_encoding($s, 'ISO-8859-1') to decide: every byte string is "valid" ISO-8859-1.)
+    if ($strcontent === null || $strcontent === '' || mb_check_encoding($strcontent, 'UTF-8'))
+      return $strcontent;
+    $converted_text_to_utf8 = iconv('ISO-8859-1', 'UTF-8', $strcontent); // legacy ISO-8859-1 content -> UTF-8
     //D  echo "ilm_security.php:<br/>current_encoding=" . $current_encoding . ", new_encoding=" . $new_encoding . "<br/>";
     //D  echo "strcontent[0,200]=" . substr($strcontent, 0, 200) . "<br/>";
     //D  echo "converted_text_to_utf8[0,200]=" . substr($converted_text_to_utf8, 0, 200) . "<br/>---<br/>";
